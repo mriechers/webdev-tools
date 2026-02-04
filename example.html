@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!--
+    EXAMPLE PAGE — Perfect Open Graph Setup
+    ========================================
+    This page exists as a testable reference for the OG Image Preview Tool.
+    Every meta tag below is configured to produce optimal previews across
+    all major social platforms.
+
+    You can use this as a template for your own pages.
+  -->
+
+  <title>How to Build a Mass Spectrometer from Kitchen Supplies — The Impractical Engineer</title>
+
+  <!-- ============================================================
+       CORE OG TAGS — The Universal Foundation
+       These four tags are the absolute minimum for any page that will
+       be shared on social media. Every major platform reads these.
+       ============================================================ -->
+
+  <!-- og:title — The headline shown in the link preview.
+       Keep it under 60 characters to avoid truncation on most platforms.
+       This should be your page title, NOT your site name. -->
+  <meta property="og:title" content="How to Build a Mass Spectrometer from Kitchen Supplies">
+
+  <!-- og:description — The snippet text below the title.
+       Aim for 120-160 characters. Facebook truncates around 300,
+       Twitter around 200, LinkedIn around 150. Write the most
+       important information first. -->
+  <meta property="og:description" content="Episode 47: We attempt the impossible — building a functional mass spectrometer using only items from a home kitchen. Spoiler: it sort of works.">
+
+  <!-- og:image — The preview image URL. MUST be an absolute URL.
+       This is the single most impactful tag for social engagement.
+       Recommended: 1200×630px, under 5MB, JPG or PNG.
+       Using a placeholder service here since this is an example. -->
+  <meta property="og:image" content="https://placehold.co/1200x630/1a1d27/e1e4ed?text=OG+Image+Example%0A1200+x+630&font=source-sans-pro">
+
+  <!-- og:url — The canonical URL for this page.
+       Platforms use this to deduplicate shares. If multiple URLs
+       point to the same content (http vs https, www vs non-www,
+       query params), set this to the one canonical version. -->
+  <meta property="og:url" content="https://example.com/episodes/47-mass-spectrometer">
+
+  <!-- ============================================================
+       OG IMAGE METADATA — Helps Platforms Render Faster
+       These are optional but improve how quickly and accurately
+       platforms can render your preview without downloading the
+       full image first.
+       ============================================================ -->
+
+  <!-- og:image:width / og:image:height — Pixel dimensions of the image.
+       When provided, platforms can render the preview placeholder
+       at the correct size before the image loads. Without these,
+       some platforms must download the image first to get dimensions,
+       which can delay or break the preview entirely. -->
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+
+  <!-- og:image:alt — Alt text for the preview image.
+       Critical for accessibility. Screen readers use this when
+       the image appears in social feeds. Also used by some platforms
+       as fallback text if the image fails to load. -->
+  <meta property="og:image:alt" content="A kitchen counter covered in household items arranged to resemble a mass spectrometer, with labels pointing to each component">
+
+  <!-- og:image:type — MIME type of the image.
+       Helps platforms decide how to handle the image without
+       downloading it. Not strictly required but good practice. -->
+  <meta property="og:image:type" content="image/png">
+
+  <!-- ============================================================
+       OG METADATA — Content Classification
+       These tags provide additional context about the page.
+       ============================================================ -->
+
+  <!-- og:type — The type of content. Common values:
+       "website" (default), "article", "video.other", "music.song",
+       "profile", "book". Affects how some platforms display the preview.
+       Facebook uses this to show additional fields (e.g., author for articles). -->
+  <meta property="og:type" content="article">
+
+  <!-- og:site_name — Your site/brand name (NOT the page title).
+       Displayed as a subtle label above or below the preview on
+       some platforms. Facebook shows it above the title; Slack shows
+       it as a small header. -->
+  <meta property="og:site_name" content="The Impractical Engineer">
+
+  <!-- og:locale — The language/locale of the content.
+       Format: language_TERRITORY. Helps platforms serve the preview
+       to the right audience and handle text rendering correctly. -->
+  <meta property="og:locale" content="en_US">
+
+  <!-- ============================================================
+       TWITTER/X-SPECIFIC TAGS
+       Twitter reads og: tags as fallbacks, but has its own tag
+       namespace for features specific to Twitter Cards.
+       ============================================================ -->
+
+  <!-- twitter:card — Controls the preview layout on Twitter/X.
+       "summary" = small square thumbnail (144×144 min) to the left of text
+       "summary_large_image" = large image above text (the one you usually want)
+       "player" = embedded video/audio player
+       "app" = app install card
+       This is the MOST IMPORTANT Twitter-specific tag. Without it,
+       Twitter defaults to "summary" (the small thumbnail). -->
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- twitter:title / twitter:description / twitter:image
+       These override the og: equivalents on Twitter specifically.
+       Useful when you want a different headline or image on Twitter
+       vs Facebook. If omitted, Twitter falls back to og: tags. -->
+  <meta name="twitter:title" content="How to Build a Mass Spectrometer from Kitchen Supplies">
+  <meta name="twitter:description" content="Episode 47: Building a functional mass spectrometer using only kitchen items. Spoiler: it sort of works.">
+  <meta name="twitter:image" content="https://placehold.co/1200x630/1a1d27/e1e4ed?text=OG+Image+Example%0A1200+x+630&font=source-sans-pro">
+
+  <!-- twitter:image:alt — Alt text specifically for Twitter.
+       Twitter enforces a 420-character limit on this field. -->
+  <meta name="twitter:image:alt" content="A kitchen counter covered in household items arranged to resemble a mass spectrometer">
+
+  <!-- twitter:site — The @username of the website/publication.
+       Shown as "via @site" in some Twitter card layouts. -->
+  <meta name="twitter:site" content="@ImpracticalEng">
+
+  <!-- twitter:creator — The @username of the content author.
+       Useful for articles where the author is different from the site. -->
+  <meta name="twitter:creator" content="@DrKitchenScience">
+
+  <!-- ============================================================
+       DISCORD / SLACK / OTHER PLATFORM TAGS
+       Some platforms look for additional meta tags beyond OG.
+       ============================================================ -->
+
+  <!-- theme-color — Used by Discord to color the embed sidebar,
+       by some browsers for the address bar tint, and by PWA manifests.
+       Use a hex color that matches your brand. -->
+  <meta name="theme-color" content="#5b8af5">
+
+  <!-- Standard description meta tag — Not an OG tag, but many platforms
+       (especially Slack) use this as a fallback when og:description
+       is missing. Also used by search engines. Always include it. -->
+  <meta name="description" content="Episode 47 of The Impractical Engineer: We attempt to build a mass spectrometer from kitchen supplies.">
+
+  <style>
+    /*
+     * Minimal styling for the example page itself.
+     * This page is primarily consumed by the meta tag parser, not
+     * by human visitors — but it should still be readable if someone
+     * navigates to it directly.
+     */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+      line-height: 1.7;
+      color: #e1e4ed;
+      background: #0f1117;
+    }
+    @media (prefers-color-scheme: light) {
+      body { color: #1a1d27; background: #f5f6fa; }
+      code { background: #e8eaf0; }
+      .tag-card { background: #ffffff; border-color: #d4d7e0; }
+      .tag-label { color: #3b6fd9; }
+      h1, h2, h3 { color: #0f1117; }
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.5rem; color: #f0f2f8; }
+    .subtitle { color: #8b90a5; margin-bottom: 2rem; }
+    h2 { font-size: 1.25rem; margin-top: 2rem; color: #f0f2f8; border-bottom: 1px solid #2e3245; padding-bottom: 0.5rem; }
+    code { font-family: 'SF Mono', 'Consolas', monospace; font-size: 0.875em; background: #242734; padding: 2px 6px; border-radius: 4px; }
+    .tag-card { background: #1a1d27; border: 1px solid #2e3245; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+    .tag-label { font-family: 'SF Mono', 'Consolas', monospace; color: #5b8af5; font-size: 0.9rem; }
+    .tag-value { color: #8b90a5; font-size: 0.85rem; margin-top: 0.25rem; }
+    .tag-why { margin-top: 0.5rem; font-size: 0.9rem; }
+    .back-link { display: inline-block; margin-bottom: 1.5rem; color: #5b8af5; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .badge { display: inline-block; padding: 2px 8px; font-size: 0.75rem; border-radius: 999px; font-weight: 600; margin-left: 0.5rem; }
+    .badge.required { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+    .badge.recommended { background: rgba(250, 204, 21, 0.15); color: #facc15; }
+    .badge.optional { background: rgba(139, 144, 165, 0.15); color: #8b90a5; }
+  </style>
+</head>
+<body>
+
+  <a href="index.html" class="back-link">&larr; Back to OG Preview Tool</a>
+
+  <h1>How to Build a Mass Spectrometer from Kitchen Supplies</h1>
+  <p class="subtitle">
+    This is an example page with a perfect Open Graph setup.
+    Use it as a reference for configuring your own pages.
+  </p>
+
+  <p>
+    Every meta tag in this page's <code>&lt;head&gt;</code> is annotated with comments
+    explaining what it does, why it matters, and which platforms use it. You can
+    <strong>view the source</strong> of this page to see the full annotated markup, or
+    read the summary below.
+  </p>
+
+  <h2>Core OG Tags <span class="badge required">Required</span></h2>
+
+  <div class="tag-card">
+    <div class="tag-label">og:title</div>
+    <div class="tag-value">"How to Build a Mass Spectrometer from Kitchen Supplies"</div>
+    <p class="tag-why">
+      The headline in your link preview. Every platform reads this. Keep it under 60 characters
+      to avoid truncation. Use your <em>page</em> title, not your site name.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">og:description</div>
+    <div class="tag-value">"Episode 47: We attempt the impossible — building a functional mass spectrometer..."</div>
+    <p class="tag-why">
+      The snippet text below the title. Aim for 120–160 characters. Facebook truncates
+      around 300 chars, Twitter around 200, LinkedIn around 150. Front-load the important stuff.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">og:image</div>
+    <div class="tag-value">https://example.com/images/ep47-og.jpg (1200×630, PNG)</div>
+    <p class="tag-why">
+      The preview image. <strong>This is the single most impactful tag for social engagement.</strong>
+      Must be an absolute URL (not relative). Recommended: 1200×630px, under 5MB, JPG or PNG.
+      This one dimension (1200×630 at 1.91:1 ratio) works well across all major platforms.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">og:url</div>
+    <div class="tag-value">"https://example.com/episodes/47-mass-spectrometer"</div>
+    <p class="tag-why">
+      The canonical URL. Platforms use this to deduplicate shares — if the same article
+      is shared via different URLs (http vs https, with/without query params), they'll
+      count as one piece of content.
+    </p>
+  </div>
+
+  <h2>Image Metadata <span class="badge recommended">Recommended</span></h2>
+
+  <div class="tag-card">
+    <div class="tag-label">og:image:width / og:image:height</div>
+    <div class="tag-value">1200 × 630</div>
+    <p class="tag-why">
+      Tells platforms the image dimensions before they download it. Without these,
+      some platforms (especially Facebook) must fetch the image first, which can delay
+      or break the preview entirely on first share. Always include them.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">og:image:alt</div>
+    <div class="tag-value">"A kitchen counter covered in household items arranged to resemble a mass spectrometer..."</div>
+    <p class="tag-why">
+      Alt text for the preview image. Screen readers use this in social feeds.
+      Critical for accessibility — without it, visually impaired users get no
+      context about your preview image.
+    </p>
+  </div>
+
+  <h2>Twitter/X-Specific Tags <span class="badge recommended">Recommended</span></h2>
+
+  <div class="tag-card">
+    <div class="tag-label">twitter:card</div>
+    <div class="tag-value">"summary_large_image"</div>
+    <p class="tag-why">
+      <strong>The most important Twitter-specific tag.</strong> Without it, Twitter defaults to
+      <code>summary</code> (a tiny square thumbnail). Set to <code>summary_large_image</code>
+      for the large above-the-text image preview that gets much higher engagement.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">twitter:site / twitter:creator</div>
+    <div class="tag-value">@ImpracticalEng / @DrKitchenScience</div>
+    <p class="tag-why">
+      <code>twitter:site</code> is your publication's handle; <code>twitter:creator</code>
+      is the author's. Twitter shows these as attribution on the card. Useful for multi-author
+      sites where the author and site are different accounts.
+    </p>
+  </div>
+
+  <h2>Bonus Tags <span class="badge optional">Optional</span></h2>
+
+  <div class="tag-card">
+    <div class="tag-label">og:site_name</div>
+    <div class="tag-value">"The Impractical Engineer"</div>
+    <p class="tag-why">
+      Your brand/site name (not the page title). Facebook shows it as a small label
+      above the title. Slack shows it as a header in the unfurled link. Nice for branding
+      but not critical.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">og:type</div>
+    <div class="tag-value">"article"</div>
+    <p class="tag-why">
+      Content type classification. Common values: <code>website</code> (default),
+      <code>article</code>, <code>video.other</code>, <code>profile</code>.
+      Facebook may show extra fields (like publish date) for articles.
+    </p>
+  </div>
+
+  <div class="tag-card">
+    <div class="tag-label">theme-color</div>
+    <div class="tag-value">#5b8af5</div>
+    <p class="tag-why">
+      Discord uses this to color the left sidebar of its embed preview.
+      Some mobile browsers also use it to tint the address bar.
+      Not an OG tag, but a nice detail for Discord-heavy audiences.
+    </p>
+  </div>
+
+</body>
+</html>

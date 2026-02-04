@@ -130,6 +130,9 @@ const state = {
 
   /** @type {{width: number, height: number}|null} Detected image dimensions */
   imageDimensions: null,
+
+  /** @type {boolean} Whether the current result is from a built-in example */
+  isExample: false,
 };
 
 /* ============================================================
@@ -156,6 +159,8 @@ const dom = {
   copySuggestions: document.getElementById('copy-suggestions'),
   tierTabs: document.querySelectorAll('.tier-tab'),
   customProxyField: document.getElementById('custom-proxy-field'),
+  copyReportBtn: document.getElementById('copy-report-btn'),
+  copyReportLabel: document.getElementById('copy-report-label'),
 };
 
 /* ============================================================
@@ -180,6 +185,7 @@ async function init() {
   dom.form.addEventListener('submit', handleFormSubmit);
   dom.errorDismiss.addEventListener('click', hideError);
   dom.copySuggestions.addEventListener('click', handleCopySuggestions);
+  dom.copyReportBtn.addEventListener('click', handleCopyReport);
 
   // Tier filter tabs
   dom.tierTabs.forEach((tab) => {
@@ -191,6 +197,12 @@ async function init() {
     radio.addEventListener('change', () => {
       dom.customProxyField.hidden = radio.value !== 'custom';
     });
+  });
+
+  // Example buttons — load a built-in example page.
+  // The example page is same-origin, so no CORS proxy needed.
+  document.querySelectorAll('.example-btn').forEach((btn) => {
+    btn.addEventListener('click', () => handleExampleClick(btn.dataset.example));
   });
 
   // Support URL passed as a query parameter (for shareable links)
@@ -229,6 +241,7 @@ async function handleFormSubmit(event) {
   // Start the fetch flow
   setLoading(true);
   hideError();
+  state.isExample = false;
 
   try {
     // Step 1: Fetch HTML via the CORS proxy
@@ -309,6 +322,284 @@ async function handleCopySuggestions() {
     }, 2000);
   }
 }
+
+/**
+ * Copy a plain-text report of the current results to the clipboard.
+ *
+ * The report is formatted for pasting into text-based contexts:
+ * Claude Code, GitHub issues, Slack, etc. It includes:
+ * - The URL that was analyzed
+ * - All detected (and missing) meta tags
+ * - Per-platform status and warnings
+ * - Suggested meta tags if any are missing
+ *
+ * This is intentionally verbose — when pasting into Claude Code,
+ * more context helps it give better advice.
+ */
+async function handleCopyReport() {
+  if (!state.metaTags || !state.currentUrl) return;
+
+  const report = generateTextReport(state.metaTags, state.currentUrl);
+
+  try {
+    await navigator.clipboard.writeText(report);
+    dom.copyReportLabel.textContent = 'Copied!';
+    setTimeout(() => {
+      dom.copyReportLabel.textContent = 'Copy text report';
+    }, 2000);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = report;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    dom.copyReportLabel.textContent = 'Copied!';
+    setTimeout(() => {
+      dom.copyReportLabel.textContent = 'Copy text report';
+    }, 2000);
+  }
+}
+
+/**
+ * Generate a structured plain-text report of the OG analysis.
+ *
+ * The format is designed to be:
+ * 1. Readable by humans in any monospace context
+ * 2. Parseable by LLMs (Claude Code, ChatGPT, etc.) for follow-up advice
+ * 3. Pasteable into GitHub issues, Slack, or documentation
+ *
+ * @param {Object} tags - Parsed meta tags
+ * @param {string} url - The analyzed URL
+ * @returns {string} The full text report
+ */
+function generateTextReport(tags, url) {
+  const lines = [];
+  const divider = '─'.repeat(60);
+
+  // ── Header
+  lines.push('OG IMAGE PREVIEW REPORT');
+  lines.push(divider);
+  lines.push(`URL: ${url}`);
+  lines.push(`Analyzed: ${new Date().toISOString()}`);
+  lines.push('');
+
+  // ── Detected Meta Tags
+  lines.push('DETECTED META TAGS');
+  lines.push(divider);
+
+  const importantTags = ['og:title', 'og:description', 'og:image', 'og:url', 'twitter:card'];
+
+  META_TAGS_TO_FIND.forEach((tagName) => {
+    const value = tags[tagName];
+    if (value) {
+      const truncated = value.length > 200 ? value.substring(0, 200) + '...' : value;
+      lines.push(`  [FOUND]   ${tagName}: ${truncated}`);
+    } else if (importantTags.includes(tagName)) {
+      lines.push(`  [MISSING] ${tagName}  ← recommended`);
+    } else {
+      lines.push(`  [--]      ${tagName}  (optional)`);
+    }
+  });
+
+  lines.push('');
+
+  // ── Image Dimensions
+  if (state.imageDimensions) {
+    const { width, height } = state.imageDimensions;
+    const ratio = (width / height).toFixed(2);
+    lines.push('IMAGE DIMENSIONS');
+    lines.push(divider);
+    lines.push(`  Size:         ${width} × ${height}px`);
+    lines.push(`  Aspect ratio: ${ratio}:1 (recommended: 1.91:1)`);
+    lines.push(`  Recommended:  1200 × 630px`);
+
+    if (width >= 1200) {
+      lines.push(`  Status:       OK — meets recommended width`);
+    } else if (width >= 600) {
+      lines.push(`  Status:       WARNING — below recommended 1200px, may appear blurry on some platforms`);
+    } else {
+      lines.push(`  Status:       ERROR — below minimum for most platforms, image may not display`);
+    }
+    lines.push('');
+  } else if (tags['og:image']) {
+    lines.push('IMAGE DIMENSIONS');
+    lines.push(divider);
+    lines.push('  Could not determine image dimensions (CORS or load failure)');
+    lines.push('');
+  }
+
+  // ── Platform-by-Platform Results
+  lines.push('PLATFORM RESULTS');
+  lines.push(divider);
+
+  const platforms = state.platformData.platforms;
+  const tierLabels = { 1: 'Critical', 2: 'Important', 3: 'Nice to Have' };
+  let currentTier = 0;
+
+  platforms.forEach((platform) => {
+    // Print tier header when tier changes
+    if (platform.tier !== currentTier) {
+      currentTier = platform.tier;
+      lines.push('');
+      lines.push(`  ── Tier ${currentTier}: ${tierLabels[currentTier]} ──`);
+    }
+
+    const warnings = generateWarnings(platform, tags, state.imageDimensions);
+    const status = getOverallStatus(warnings);
+    const statusIcon = status === 'ok' ? '✓' : status === 'warn' ? '⚠' : '✗';
+    const rec = platform.recommended;
+
+    lines.push(`  ${statusIcon} ${platform.name} (${rec.width}×${rec.height}, ${rec.aspectRatio})`);
+
+    warnings.forEach((w) => {
+      const icon = w.level === 'success' ? '    ✓' : w.level === 'warn' ? '    ⚠' : '    ✗';
+      lines.push(`${icon} ${w.message}`);
+    });
+  });
+
+  lines.push('');
+
+  // ── Suggested Meta Tags (if any are missing)
+  const suggestions = [];
+  if (!tags['og:title']) suggestions.push('<meta property="og:title" content="Your Page Title">');
+  if (!tags['og:description']) suggestions.push('<meta property="og:description" content="Description here">');
+  if (!tags['og:image']) {
+    suggestions.push('<meta property="og:image" content="https://yoursite.com/og-image.jpg">');
+    suggestions.push('<meta property="og:image:width" content="1200">');
+    suggestions.push('<meta property="og:image:height" content="630">');
+    suggestions.push('<meta property="og:image:alt" content="Alt text for your image">');
+  }
+  if (!tags['og:url']) suggestions.push(`<meta property="og:url" content="${url}">`);
+  if (!tags['twitter:card']) suggestions.push('<meta name="twitter:card" content="summary_large_image">');
+
+  if (suggestions.length > 0) {
+    lines.push('SUGGESTED META TAGS');
+    lines.push(divider);
+    lines.push('Add these to your <head>:');
+    lines.push('');
+    suggestions.forEach((s) => lines.push(`  ${s}`));
+    lines.push('');
+  }
+
+  // ── Footer
+  lines.push(divider);
+  lines.push('Generated by OG Image Preview Tool');
+  lines.push('Debug tools: Facebook Sharing Debugger, X/Twitter Card Validator, LinkedIn Post Inspector');
+
+  return lines.join('\n');
+}
+
+/**
+ * Handle click on an example button.
+ * Fetches the example page directly (same-origin, no CORS proxy needed)
+ * and renders results with educational annotations for each tag.
+ *
+ * @param {string} exampleId - Which example to load (currently: 'perfect')
+ */
+async function handleExampleClick(exampleId) {
+  // Map example IDs to their HTML file paths.
+  // Using a map makes it easy to add more examples later.
+  const examples = {
+    perfect: {
+      file: 'example.html',
+      label: 'Perfect OG setup example',
+    },
+  };
+
+  const example = examples[exampleId];
+  if (!example) return;
+
+  setLoading(true);
+  hideError();
+  state.isExample = true;
+
+  try {
+    // Fetch the example page directly — it's hosted alongside us,
+    // so it's same-origin and doesn't need a proxy. This also means
+    // the example always works, even if all CORS proxies are down.
+    const response = await fetch(example.file);
+    const html = await response.text();
+
+    // Build the full URL for display purposes
+    const exampleUrl = new URL(example.file, window.location.href).href;
+
+    const tags = parseMetaTags(html, exampleUrl);
+    state.metaTags = tags;
+    state.currentUrl = exampleUrl;
+
+    if (tags['og:image']) {
+      state.imageDimensions = await probeImageDimensions(tags['og:image']);
+    } else {
+      state.imageDimensions = null;
+    }
+
+    // Render with educational annotations
+    renderMetaSummary(tags);
+    renderPreviews(tags);
+    renderSuggestions(tags);
+
+    // Put the example URL in the input so it's clear what's being previewed
+    dom.urlInput.value = exampleUrl;
+  } catch (err) {
+    showError(
+      'Could not load example',
+      'Failed to fetch example.html. Make sure the file exists alongside index.html.'
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Educational explanations for each meta tag.
+ * Shown in the meta tag summary when viewing a built-in example,
+ * so users can learn what each tag does and why it matters.
+ *
+ * Each entry maps a tag name to a short explanation string.
+ * These are intentionally concise — the example.html page has
+ * longer explanations with additional context.
+ */
+const TAG_EXPLANATIONS = {
+  'og:title':
+    'The headline shown in link previews. Keep under 60 characters. Use the page title, not your site name.',
+  'og:description':
+    'Snippet text below the title. Aim for 120-160 characters. Front-load the important information.',
+  'og:image':
+    'The preview image URL. Must be absolute. 1200x630px at 1.91:1 works across all major platforms.',
+  'og:image:width':
+    'Tells platforms the image width in pixels without downloading it. Prevents broken or delayed previews.',
+  'og:image:height':
+    'Tells platforms the image height in pixels. Paired with og:image:width for instant rendering.',
+  'og:image:alt':
+    'Alt text for the preview image. Critical for screen readers in social feeds.',
+  'og:image:type':
+    'MIME type (e.g., image/png). Helps platforms handle the image before downloading it.',
+  'og:url':
+    'Canonical URL for deduplication. Ensures shares via different URLs count as the same content.',
+  'og:type':
+    'Content type (website, article, video.other). Facebook uses this to show extra fields like publish date.',
+  'og:site_name':
+    'Your brand name (not the page title). Shown as a label above or below the preview on some platforms.',
+  'twitter:card':
+    'Controls Twitter layout. "summary_large_image" = large image above text (recommended). "summary" = small square thumbnail.',
+  'twitter:title':
+    'Overrides og:title on Twitter. Useful when you want a different headline for Twitter vs Facebook.',
+  'twitter:description':
+    'Overrides og:description on Twitter. Keeps within Twitter\'s ~200 character display limit.',
+  'twitter:image':
+    'Overrides og:image on Twitter. Use when you want a different image for Twitter specifically.',
+  'twitter:image:alt':
+    'Alt text for Twitter. 420-character limit enforced by Twitter.',
+  'twitter:site':
+    'Your publication\'s @username. Shown as "via @site" on some Twitter card layouts.',
+  'twitter:creator':
+    'The author\'s @username. Useful for multi-author sites where author differs from the site account.',
+  'theme-color':
+    'Used by Discord to color the embed sidebar, and by some mobile browsers for the address bar.',
+  'description':
+    'Standard HTML meta description. Not an OG tag, but used as fallback by Slack and search engines.',
+};
 
 /* ============================================================
    FETCHING & PARSING
@@ -559,6 +850,16 @@ function renderMetaSummary(tags) {
     row.appendChild(badge);
     row.appendChild(nameEl);
     row.appendChild(valueEl);
+
+    // When viewing a built-in example, show educational explanations
+    // for each tag so users learn what they do and why they matter.
+    if (state.isExample && TAG_EXPLANATIONS[tagName]) {
+      const explainEl = document.createElement('p');
+      explainEl.className = 'meta-tag-explain';
+      explainEl.textContent = TAG_EXPLANATIONS[tagName];
+      row.appendChild(explainEl);
+    }
+
     dom.metaTagsGrid.appendChild(row);
   });
 }
