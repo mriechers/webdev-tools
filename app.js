@@ -298,29 +298,52 @@ function handleTierFilter(tier) {
 }
 
 /**
+ * Try to write text to the clipboard.
+ * Uses the modern Clipboard API first, then falls back to execCommand.
+ *
+ * @param {string} text - The text to copy
+ * @returns {Promise<boolean>} Whether the copy succeeded
+ */
+async function copyToClipboard(text) {
+  // Try the modern Clipboard API first
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Fallback for older browsers or non-HTTPS contexts
+  }
+
+  // execCommand fallback — hide the textarea off-screen so it doesn't flash
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Timer id for resetting the suggestions-copy button label. */
+let copySuggestionsTimer = 0;
+
+/**
  * Copy meta tag suggestions to clipboard.
  */
 async function handleCopySuggestions() {
   const code = dom.suggestionsCode.textContent;
-  try {
-    await navigator.clipboard.writeText(code);
-    dom.copySuggestions.textContent = 'Copied!';
-    setTimeout(() => {
-      dom.copySuggestions.textContent = 'Copy to clipboard';
-    }, 2000);
-  } catch {
-    // Fallback for browsers that don't support clipboard API
-    const textarea = document.createElement('textarea');
-    textarea.value = code;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    dom.copySuggestions.textContent = 'Copied!';
-    setTimeout(() => {
-      dom.copySuggestions.textContent = 'Copy to clipboard';
-    }, 2000);
-  }
+  const ok = await copyToClipboard(code);
+
+  clearTimeout(copySuggestionsTimer);
+  dom.copySuggestions.textContent = ok ? 'Copied!' : 'Failed to copy';
+  copySuggestionsTimer = setTimeout(() => {
+    dom.copySuggestions.textContent = 'Copy to clipboard';
+  }, 2000);
 }
 
 /**
@@ -336,29 +359,18 @@ async function handleCopySuggestions() {
  * This is intentionally verbose — when pasting into Claude Code,
  * more context helps it give better advice.
  */
+let copyReportTimer = 0;
 async function handleCopyReport() {
   if (!state.metaTags || !state.currentUrl) return;
 
   const report = generateTextReport(state.metaTags, state.currentUrl);
+  const ok = await copyToClipboard(report);
 
-  try {
-    await navigator.clipboard.writeText(report);
-    dom.copyReportLabel.textContent = 'Copied!';
-    setTimeout(() => {
-      dom.copyReportLabel.textContent = 'Copy text report';
-    }, 2000);
-  } catch {
-    const textarea = document.createElement('textarea');
-    textarea.value = report;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    dom.copyReportLabel.textContent = 'Copied!';
-    setTimeout(() => {
-      dom.copyReportLabel.textContent = 'Copy text report';
-    }, 2000);
-  }
+  clearTimeout(copyReportTimer);
+  dom.copyReportLabel.textContent = ok ? 'Copied!' : 'Failed to copy';
+  copyReportTimer = setTimeout(() => {
+    dom.copyReportLabel.textContent = 'Copy text report';
+  }, 2000);
 }
 
 /**
