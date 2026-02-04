@@ -159,6 +159,8 @@ const dom = {
   copySuggestions: document.getElementById('copy-suggestions'),
   tierTabs: document.querySelectorAll('.tier-tab'),
   customProxyField: document.getElementById('custom-proxy-field'),
+  copyReportBtn: document.getElementById('copy-report-btn'),
+  copyReportLabel: document.getElementById('copy-report-label'),
 };
 
 /* ============================================================
@@ -183,6 +185,7 @@ async function init() {
   dom.form.addEventListener('submit', handleFormSubmit);
   dom.errorDismiss.addEventListener('click', hideError);
   dom.copySuggestions.addEventListener('click', handleCopySuggestions);
+  dom.copyReportBtn.addEventListener('click', handleCopyReport);
 
   // Tier filter tabs
   dom.tierTabs.forEach((tab) => {
@@ -318,6 +321,173 @@ async function handleCopySuggestions() {
       dom.copySuggestions.textContent = 'Copy to clipboard';
     }, 2000);
   }
+}
+
+/**
+ * Copy a plain-text report of the current results to the clipboard.
+ *
+ * The report is formatted for pasting into text-based contexts:
+ * Claude Code, GitHub issues, Slack, etc. It includes:
+ * - The URL that was analyzed
+ * - All detected (and missing) meta tags
+ * - Per-platform status and warnings
+ * - Suggested meta tags if any are missing
+ *
+ * This is intentionally verbose — when pasting into Claude Code,
+ * more context helps it give better advice.
+ */
+async function handleCopyReport() {
+  if (!state.metaTags || !state.currentUrl) return;
+
+  const report = generateTextReport(state.metaTags, state.currentUrl);
+
+  try {
+    await navigator.clipboard.writeText(report);
+    dom.copyReportLabel.textContent = 'Copied!';
+    setTimeout(() => {
+      dom.copyReportLabel.textContent = 'Copy text report';
+    }, 2000);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = report;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    dom.copyReportLabel.textContent = 'Copied!';
+    setTimeout(() => {
+      dom.copyReportLabel.textContent = 'Copy text report';
+    }, 2000);
+  }
+}
+
+/**
+ * Generate a structured plain-text report of the OG analysis.
+ *
+ * The format is designed to be:
+ * 1. Readable by humans in any monospace context
+ * 2. Parseable by LLMs (Claude Code, ChatGPT, etc.) for follow-up advice
+ * 3. Pasteable into GitHub issues, Slack, or documentation
+ *
+ * @param {Object} tags - Parsed meta tags
+ * @param {string} url - The analyzed URL
+ * @returns {string} The full text report
+ */
+function generateTextReport(tags, url) {
+  const lines = [];
+  const divider = '─'.repeat(60);
+
+  // ── Header
+  lines.push('OG IMAGE PREVIEW REPORT');
+  lines.push(divider);
+  lines.push(`URL: ${url}`);
+  lines.push(`Analyzed: ${new Date().toISOString()}`);
+  lines.push('');
+
+  // ── Detected Meta Tags
+  lines.push('DETECTED META TAGS');
+  lines.push(divider);
+
+  const importantTags = ['og:title', 'og:description', 'og:image', 'og:url', 'twitter:card'];
+
+  META_TAGS_TO_FIND.forEach((tagName) => {
+    const value = tags[tagName];
+    if (value) {
+      const truncated = value.length > 200 ? value.substring(0, 200) + '...' : value;
+      lines.push(`  [FOUND]   ${tagName}: ${truncated}`);
+    } else if (importantTags.includes(tagName)) {
+      lines.push(`  [MISSING] ${tagName}  ← recommended`);
+    } else {
+      lines.push(`  [--]      ${tagName}  (optional)`);
+    }
+  });
+
+  lines.push('');
+
+  // ── Image Dimensions
+  if (state.imageDimensions) {
+    const { width, height } = state.imageDimensions;
+    const ratio = (width / height).toFixed(2);
+    lines.push('IMAGE DIMENSIONS');
+    lines.push(divider);
+    lines.push(`  Size:         ${width} × ${height}px`);
+    lines.push(`  Aspect ratio: ${ratio}:1 (recommended: 1.91:1)`);
+    lines.push(`  Recommended:  1200 × 630px`);
+
+    if (width >= 1200) {
+      lines.push(`  Status:       OK — meets recommended width`);
+    } else if (width >= 600) {
+      lines.push(`  Status:       WARNING — below recommended 1200px, may appear blurry on some platforms`);
+    } else {
+      lines.push(`  Status:       ERROR — below minimum for most platforms, image may not display`);
+    }
+    lines.push('');
+  } else if (tags['og:image']) {
+    lines.push('IMAGE DIMENSIONS');
+    lines.push(divider);
+    lines.push('  Could not determine image dimensions (CORS or load failure)');
+    lines.push('');
+  }
+
+  // ── Platform-by-Platform Results
+  lines.push('PLATFORM RESULTS');
+  lines.push(divider);
+
+  const platforms = state.platformData.platforms;
+  const tierLabels = { 1: 'Critical', 2: 'Important', 3: 'Nice to Have' };
+  let currentTier = 0;
+
+  platforms.forEach((platform) => {
+    // Print tier header when tier changes
+    if (platform.tier !== currentTier) {
+      currentTier = platform.tier;
+      lines.push('');
+      lines.push(`  ── Tier ${currentTier}: ${tierLabels[currentTier]} ──`);
+    }
+
+    const warnings = generateWarnings(platform, tags, state.imageDimensions);
+    const status = getOverallStatus(warnings);
+    const statusIcon = status === 'ok' ? '✓' : status === 'warn' ? '⚠' : '✗';
+    const rec = platform.recommended;
+
+    lines.push(`  ${statusIcon} ${platform.name} (${rec.width}×${rec.height}, ${rec.aspectRatio})`);
+
+    warnings.forEach((w) => {
+      const icon = w.level === 'success' ? '    ✓' : w.level === 'warn' ? '    ⚠' : '    ✗';
+      lines.push(`${icon} ${w.message}`);
+    });
+  });
+
+  lines.push('');
+
+  // ── Suggested Meta Tags (if any are missing)
+  const suggestions = [];
+  if (!tags['og:title']) suggestions.push('<meta property="og:title" content="Your Page Title">');
+  if (!tags['og:description']) suggestions.push('<meta property="og:description" content="Description here">');
+  if (!tags['og:image']) {
+    suggestions.push('<meta property="og:image" content="https://yoursite.com/og-image.jpg">');
+    suggestions.push('<meta property="og:image:width" content="1200">');
+    suggestions.push('<meta property="og:image:height" content="630">');
+    suggestions.push('<meta property="og:image:alt" content="Alt text for your image">');
+  }
+  if (!tags['og:url']) suggestions.push(`<meta property="og:url" content="${url}">`);
+  if (!tags['twitter:card']) suggestions.push('<meta name="twitter:card" content="summary_large_image">');
+
+  if (suggestions.length > 0) {
+    lines.push('SUGGESTED META TAGS');
+    lines.push(divider);
+    lines.push('Add these to your <head>:');
+    lines.push('');
+    suggestions.forEach((s) => lines.push(`  ${s}`));
+    lines.push('');
+  }
+
+  // ── Footer
+  lines.push(divider);
+  lines.push('Generated by OG Image Preview Tool');
+  lines.push('Debug tools: Facebook Sharing Debugger, X/Twitter Card Validator, LinkedIn Post Inspector');
+
+  return lines.join('\n');
 }
 
 /**
