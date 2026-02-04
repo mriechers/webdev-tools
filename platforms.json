@@ -1,0 +1,330 @@
+{
+  "_meta": {
+    "description": "OG Image Preview Tool — Platform Specifications",
+    "lastUpdated": "2026-02-04",
+    "notes": [
+      "This file is the single source of truth for how each platform handles OG images.",
+      "Update this file (not rendering logic) when platforms change their specs.",
+      "Sources are noted per-platform; 'community' means reverse-engineered, not official docs."
+    ]
+  },
+
+  "platforms": [
+    {
+      "id": "facebook",
+      "name": "Facebook",
+      "tier": 1,
+      "icon": "facebook",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 600,
+        "minHeight": 315,
+        "maxFileSize": "8MB",
+        "formats": ["jpg", "png", "gif", "webp"]
+      },
+      "behavior": {
+        "cropMethod": "center-crop to 1.91:1 if aspect ratio differs",
+        "fallbackWhenMissing": "Shows a small generic link icon or pulls the first large image from the page",
+        "letterboxing": false,
+        "notes": "Images smaller than 600×315 render as a small thumbnail to the left of the text instead of a large card."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:image:width", "og:image:height", "og:image:alt", "og:image:type"],
+      "debugTool": "https://developers.facebook.com/tools/debug/",
+      "specSource": "official",
+      "specUrl": "https://developers.facebook.com/docs/sharing/webmasters/images/"
+    },
+    {
+      "id": "twitter",
+      "name": "X / Twitter",
+      "tier": 1,
+      "icon": "twitter",
+      "recommended": {
+        "width": 1200,
+        "height": 628,
+        "aspectRatio": "1.91:1",
+        "minWidth": 300,
+        "minHeight": 157,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png", "gif", "webp"]
+      },
+      "behavior": {
+        "cropMethod": "center-crop to 1.91:1 for summary_large_image; 1:1 crop for summary card",
+        "fallbackWhenMissing": "Falls back to og:image if twitter:image is absent. If neither exists, no image card is shown.",
+        "letterboxing": false,
+        "notes": "twitter:card must be set to 'summary_large_image' for the large preview. Default 'summary' uses a small square thumbnail (144×144 min)."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["twitter:image", "twitter:card", "twitter:image:alt"],
+      "cardTypes": {
+        "summary": { "width": 144, "height": 144, "aspectRatio": "1:1" },
+        "summary_large_image": { "width": 1200, "height": 628, "aspectRatio": "1.91:1" }
+      },
+      "debugTool": "https://cards-dev.twitter.com/validator",
+      "specSource": "official",
+      "specUrl": "https://developer.x.com/en/docs/twitter-for-websites/cards/overview/markup"
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "tier": 1,
+      "icon": "linkedin",
+      "recommended": {
+        "width": 1200,
+        "height": 627,
+        "aspectRatio": "1.91:1",
+        "minWidth": 200,
+        "minHeight": 200,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png"]
+      },
+      "behavior": {
+        "cropMethod": "center-crop to 1.91:1",
+        "fallbackWhenMissing": "Shows a generic grey placeholder with a small icon",
+        "letterboxing": false,
+        "notes": "LinkedIn is stricter about image quality. Images below 1200px wide may appear blurry on high-DPI screens."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:image:width", "og:image:height"],
+      "debugTool": "https://www.linkedin.com/post-inspector/inspect/",
+      "specSource": "official",
+      "specUrl": "https://www.linkedin.com/help/linkedin/answer/a521928"
+    },
+    {
+      "id": "bluesky",
+      "name": "Bluesky",
+      "tier": 1,
+      "icon": "bluesky",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 300,
+        "minHeight": 300,
+        "maxFileSize": "1MB",
+        "formats": ["jpg", "png", "webp"]
+      },
+      "behavior": {
+        "cropMethod": "center-crop to approximately 1.91:1",
+        "fallbackWhenMissing": "Shows a plain link card with title and domain only",
+        "letterboxing": false,
+        "notes": "Bluesky reads standard og:image tags. It re-fetches and caches images on its own CDN. Max file size is notably smaller than other platforms."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "tier": 2,
+      "icon": "discord",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 256,
+        "minHeight": 256,
+        "maxFileSize": "8MB",
+        "formats": ["jpg", "png", "gif", "webp"]
+      },
+      "behavior": {
+        "cropMethod": "Preserves aspect ratio, constrains to max embed width (~400px rendered). Tall images are shown with scroll.",
+        "fallbackWhenMissing": "Shows a text-only embed with site name, title, and description",
+        "letterboxing": true,
+        "notes": "Discord renders a rich embed with a colored sidebar. It respects twitter:card for large vs small images. GIFs are auto-played."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:site_name", "og:description", "twitter:card", "theme-color"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "tier": 2,
+      "icon": "slack",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 250,
+        "minHeight": 250,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png", "gif"]
+      },
+      "behavior": {
+        "cropMethod": "Preserves aspect ratio within a max-width container (~550px). Adds subtle border.",
+        "fallbackWhenMissing": "Shows a text-only unfurl with site name, title, description, and favicon",
+        "letterboxing": true,
+        "notes": "Slack uses its own 'unfurling' service that caches aggressively. It reads og:image, twitter:image, and also looks for apple-touch-icon as a fallback favicon."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:site_name", "og:description", "twitter:image"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": "https://api.slack.com/reference/messaging/link-unfurling"
+    },
+    {
+      "id": "imessage",
+      "name": "iMessage",
+      "tier": 2,
+      "icon": "imessage",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 300,
+        "minHeight": 150,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png"]
+      },
+      "behavior": {
+        "cropMethod": "Center-crop to fill the message bubble width, approximately 1.91:1",
+        "fallbackWhenMissing": "Shows a compact link with just the domain name and favicon",
+        "letterboxing": false,
+        "notes": "iMessage link previews are generated by Apple's bot (Applebot). The preview is rendered inside the chat bubble. Very tall or very wide images get cropped significantly."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "whatsapp",
+      "name": "WhatsApp",
+      "tier": 2,
+      "icon": "whatsapp",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 300,
+        "minHeight": 200,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png"]
+      },
+      "behavior": {
+        "cropMethod": "Center-crop to approximately 1.91:1, displayed within chat bubble width",
+        "fallbackWhenMissing": "Shows a small link preview with domain and title only, no image",
+        "letterboxing": false,
+        "notes": "WhatsApp caches previews per-URL for extended periods. Users may need to send a slightly modified URL to force a refresh."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "mastodon",
+      "name": "Mastodon",
+      "tier": 3,
+      "icon": "mastodon",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 400,
+        "minHeight": 209,
+        "maxFileSize": "8MB",
+        "formats": ["jpg", "png", "gif", "webp"]
+      },
+      "behavior": {
+        "cropMethod": "Center-crop to approximately 1.91:1",
+        "fallbackWhenMissing": "Shows a text-only link card with title, description, and domain",
+        "letterboxing": false,
+        "notes": "Behavior may vary by Mastodon instance since each server fetches previews independently."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "threads",
+      "name": "Threads",
+      "tier": 3,
+      "icon": "threads",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 500,
+        "minHeight": 262,
+        "maxFileSize": "8MB",
+        "formats": ["jpg", "png"]
+      },
+      "behavior": {
+        "cropMethod": "Center-crop to 1.91:1, similar to Instagram/Facebook handling",
+        "fallbackWhenMissing": "Shows domain name only as a simple text link",
+        "letterboxing": false,
+        "notes": "Threads is owned by Meta and shares much of Facebook's OG parsing infrastructure."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "telegram",
+      "name": "Telegram",
+      "tier": 3,
+      "icon": "telegram",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 256,
+        "minHeight": 256,
+        "maxFileSize": "5MB",
+        "formats": ["jpg", "png", "gif"]
+      },
+      "behavior": {
+        "cropMethod": "Preserves aspect ratio within the chat bubble width. Very tall images are truncated.",
+        "fallbackWhenMissing": "Shows a text-only preview with title and description",
+        "letterboxing": true,
+        "notes": "Telegram's Instant View feature can generate rich article previews beyond basic OG tags."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description", "og:site_name"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "tier": 3,
+      "icon": "reddit",
+      "recommended": {
+        "width": 1200,
+        "height": 630,
+        "aspectRatio": "1.91:1",
+        "minWidth": 200,
+        "minHeight": 200,
+        "maxFileSize": "8MB",
+        "formats": ["jpg", "png", "gif"]
+      },
+      "behavior": {
+        "cropMethod": "Center-crop to fill a roughly 16:9 thumbnail area in card view",
+        "fallbackWhenMissing": "Shows a default grey thumbnail based on the link's domain",
+        "letterboxing": false,
+        "notes": "Reddit has multiple view modes (card, classic, compact) that display thumbnails differently. Card view uses the largest preview."
+      },
+      "requiredTags": ["og:image"],
+      "optionalTags": ["og:title", "og:description", "og:type"],
+      "debugTool": null,
+      "specSource": "community",
+      "specUrl": null
+    }
+  ]
+}
