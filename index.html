@@ -89,8 +89,25 @@
           </button>
         </div>
         <p id="url-help" class="input-help">
-          Paste any public URL to see how its Open Graph image renders on each platform.
+          Paste any public URL to see how its Open Graph image renders on each platform,
+          or try an example:
         </p>
+
+        <!-- Example selector — lets users load a pre-configured example
+             without needing a real URL. The example page is hosted alongside
+             this tool, so it bypasses CORS entirely (same origin). -->
+        <div class="example-selector">
+          <button type="button" class="example-btn" data-example="perfect">
+            <span class="example-btn-icon" aria-hidden="true">&#10003;</span>
+            <span>
+              <strong>Perfect setup</strong>
+              <span class="example-btn-desc">All OG tags correctly configured — see what a green-across-the-board result looks like</span>
+            </span>
+          </button>
+          <a href="example.html" class="example-link" target="_blank" rel="noopener">
+            View the example page source to see every tag explained
+          </a>
+        </div>
       </form>
 
       <!-- Proxy configuration — collapsed by default to reduce visual noise -->

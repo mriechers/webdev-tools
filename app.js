@@ -130,6 +130,9 @@ const state = {
 
   /** @type {{width: number, height: number}|null} Detected image dimensions */
   imageDimensions: null,
+
+  /** @type {boolean} Whether the current result is from a built-in example */
+  isExample: false,
 };
 
 /* ============================================================
@@ -193,6 +196,12 @@ async function init() {
     });
   });
 
+  // Example buttons — load a built-in example page.
+  // The example page is same-origin, so no CORS proxy needed.
+  document.querySelectorAll('.example-btn').forEach((btn) => {
+    btn.addEventListener('click', () => handleExampleClick(btn.dataset.example));
+  });
+
   // Support URL passed as a query parameter (for shareable links)
   // e.g., ?url=https://example.com
   const params = new URLSearchParams(window.location.search);
@@ -229,6 +238,7 @@ async function handleFormSubmit(event) {
   // Start the fetch flow
   setLoading(true);
   hideError();
+  state.isExample = false;
 
   try {
     // Step 1: Fetch HTML via the CORS proxy
@@ -309,6 +319,117 @@ async function handleCopySuggestions() {
     }, 2000);
   }
 }
+
+/**
+ * Handle click on an example button.
+ * Fetches the example page directly (same-origin, no CORS proxy needed)
+ * and renders results with educational annotations for each tag.
+ *
+ * @param {string} exampleId - Which example to load (currently: 'perfect')
+ */
+async function handleExampleClick(exampleId) {
+  // Map example IDs to their HTML file paths.
+  // Using a map makes it easy to add more examples later.
+  const examples = {
+    perfect: {
+      file: 'example.html',
+      label: 'Perfect OG setup example',
+    },
+  };
+
+  const example = examples[exampleId];
+  if (!example) return;
+
+  setLoading(true);
+  hideError();
+  state.isExample = true;
+
+  try {
+    // Fetch the example page directly — it's hosted alongside us,
+    // so it's same-origin and doesn't need a proxy. This also means
+    // the example always works, even if all CORS proxies are down.
+    const response = await fetch(example.file);
+    const html = await response.text();
+
+    // Build the full URL for display purposes
+    const exampleUrl = new URL(example.file, window.location.href).href;
+
+    const tags = parseMetaTags(html, exampleUrl);
+    state.metaTags = tags;
+    state.currentUrl = exampleUrl;
+
+    if (tags['og:image']) {
+      state.imageDimensions = await probeImageDimensions(tags['og:image']);
+    } else {
+      state.imageDimensions = null;
+    }
+
+    // Render with educational annotations
+    renderMetaSummary(tags);
+    renderPreviews(tags);
+    renderSuggestions(tags);
+
+    // Put the example URL in the input so it's clear what's being previewed
+    dom.urlInput.value = exampleUrl;
+  } catch (err) {
+    showError(
+      'Could not load example',
+      'Failed to fetch example.html. Make sure the file exists alongside index.html.'
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+
+/**
+ * Educational explanations for each meta tag.
+ * Shown in the meta tag summary when viewing a built-in example,
+ * so users can learn what each tag does and why it matters.
+ *
+ * Each entry maps a tag name to a short explanation string.
+ * These are intentionally concise — the example.html page has
+ * longer explanations with additional context.
+ */
+const TAG_EXPLANATIONS = {
+  'og:title':
+    'The headline shown in link previews. Keep under 60 characters. Use the page title, not your site name.',
+  'og:description':
+    'Snippet text below the title. Aim for 120-160 characters. Front-load the important information.',
+  'og:image':
+    'The preview image URL. Must be absolute. 1200x630px at 1.91:1 works across all major platforms.',
+  'og:image:width':
+    'Tells platforms the image width in pixels without downloading it. Prevents broken or delayed previews.',
+  'og:image:height':
+    'Tells platforms the image height in pixels. Paired with og:image:width for instant rendering.',
+  'og:image:alt':
+    'Alt text for the preview image. Critical for screen readers in social feeds.',
+  'og:image:type':
+    'MIME type (e.g., image/png). Helps platforms handle the image before downloading it.',
+  'og:url':
+    'Canonical URL for deduplication. Ensures shares via different URLs count as the same content.',
+  'og:type':
+    'Content type (website, article, video.other). Facebook uses this to show extra fields like publish date.',
+  'og:site_name':
+    'Your brand name (not the page title). Shown as a label above or below the preview on some platforms.',
+  'twitter:card':
+    'Controls Twitter layout. "summary_large_image" = large image above text (recommended). "summary" = small square thumbnail.',
+  'twitter:title':
+    'Overrides og:title on Twitter. Useful when you want a different headline for Twitter vs Facebook.',
+  'twitter:description':
+    'Overrides og:description on Twitter. Keeps within Twitter\'s ~200 character display limit.',
+  'twitter:image':
+    'Overrides og:image on Twitter. Use when you want a different image for Twitter specifically.',
+  'twitter:image:alt':
+    'Alt text for Twitter. 420-character limit enforced by Twitter.',
+  'twitter:site':
+    'Your publication\'s @username. Shown as "via @site" on some Twitter card layouts.',
+  'twitter:creator':
+    'The author\'s @username. Useful for multi-author sites where author differs from the site account.',
+  'theme-color':
+    'Used by Discord to color the embed sidebar, and by some mobile browsers for the address bar.',
+  'description':
+    'Standard HTML meta description. Not an OG tag, but used as fallback by Slack and search engines.',
+};
 
 /* ============================================================
    FETCHING & PARSING
@@ -559,6 +680,16 @@ function renderMetaSummary(tags) {
     row.appendChild(badge);
     row.appendChild(nameEl);
     row.appendChild(valueEl);
+
+    // When viewing a built-in example, show educational explanations
+    // for each tag so users learn what they do and why they matter.
+    if (state.isExample && TAG_EXPLANATIONS[tagName]) {
+      const explainEl = document.createElement('p');
+      explainEl.className = 'meta-tag-explain';
+      explainEl.textContent = TAG_EXPLANATIONS[tagName];
+      row.appendChild(explainEl);
+    }
+
     dom.metaTagsGrid.appendChild(row);
   });
 }
