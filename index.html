@@ -235,6 +235,95 @@
       from { opacity: 0; transform: translateY(8px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* -------------------------------------------------------
+     * Suggested (external) tool cards
+     * ------------------------------------------------------- */
+
+    .suggested-tools {
+      margin-top: var(--space-2xl);
+    }
+
+    .section-heading {
+      font-size: var(--text-xl);
+      font-weight: 600;
+      color: var(--color-text-heading);
+      margin-bottom: var(--space-sm);
+      letter-spacing: -0.01em;
+    }
+
+    .suggested-grid {
+      margin-top: var(--space-lg);
+    }
+
+    /* External card modifier — dashed border + relative for badge */
+    .tool-card--external {
+      position: relative;
+      border-style: dashed;
+      cursor: default;
+    }
+
+    .tool-card--external:hover {
+      border-color: var(--color-border-hover);
+      transform: translateY(-2px);
+    }
+
+    /* "External ↗" badge */
+    .external-badge {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      line-height: 1;
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: var(--color-primary);
+      background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface-raised));
+      border: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border));
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    /* Links list inside an external card */
+    .tool-card-links {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: var(--space-md);
+    }
+
+    .tool-card-links a {
+      font-size: var(--text-sm);
+      color: var(--color-primary);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      width: fit-content;
+    }
+
+    .tool-card-links a:hover {
+      color: var(--color-primary-hover);
+      text-decoration: underline;
+    }
+
+    .external-arrow {
+      font-size: 0.75em;
+      opacity: 0.7;
+    }
+
+    /* Staggered entrance for suggested cards */
+    @media (prefers-reduced-motion: no-preference) {
+      .suggested-grid .tool-card {
+        animation: fadeIn 0.3s ease both;
+      }
+      .suggested-grid .tool-card:nth-child(1) { animation-delay: 100ms; }
+      .suggested-grid .tool-card:nth-child(2) { animation-delay: 200ms; }
+      .suggested-grid .tool-card:nth-child(3) { animation-delay: 300ms; }
+      .suggested-grid .tool-card:nth-child(4) { animation-delay: 400ms; }
+    }
   </style>
 </head>
 <body>
@@ -284,12 +373,53 @@
       <!-- SUGGESTED_TOOLS_START -->
       <section class="suggested-tools">
         <h2 class="section-heading">Suggested Tools</h2>
-        <ul class="suggested-list">
-          <li><a href="https://www.castfeedvalidator.com/" target="_blank" rel="noopener">Cast Feed Validator <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
-          <li><a href="https://validator.w3.org/feed/" target="_blank" rel="noopener">W3C Feed Validator <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
-          <li><a href="https://embedresponsively.com/" target="_blank" rel="noopener">Embed Responsively <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
-          <li><a href="https://chatgpt.com/g/g-6821f526808c81918e50e06207c3f359-image-alt-writer-2" target="_blank" rel="noopener">Image Alt Writer 2 <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
-        </ul>
+        <div class="tools-grid suggested-grid">
+        <div class="tool-card tool-card--external">
+          <span class="external-badge" aria-label="External tool">External &#8599;</span>
+          <span class="tool-icon" aria-hidden="true">📡</span>
+          <h3 class="tool-name">Feed Validators</h3>
+          <p class="tool-description">Validate podcast and web feeds for errors and compatibility before publishing.</p>
+          <div class="tool-card-links">
+            <a href="https://www.castfeedvalidator.com/" target="_blank" rel="noopener">Cast Feed Validator <span class="external-arrow" aria-hidden="true">&#8599;</span></a>
+            <a href="https://validator.w3.org/feed/" target="_blank" rel="noopener">W3C Feed Validator <span class="external-arrow" aria-hidden="true">&#8599;</span></a>
+          </div>
+          <div class="tool-tags">
+            <span class="tool-tag">RSS</span>
+            <span class="tool-tag">Podcasts</span>
+            <span class="tool-tag">Validation</span>
+          </div>
+        </div>
+
+        <div class="tool-card tool-card--external">
+          <span class="external-badge" aria-label="External tool">External &#8599;</span>
+          <span class="tool-icon" aria-hidden="true">📐</span>
+          <h3 class="tool-name">Responsive Embeds</h3>
+          <p class="tool-description">Generate responsive embed codes for videos, maps, and other media.</p>
+          <div class="tool-card-links">
+            <a href="https://embedresponsively.com/" target="_blank" rel="noopener">Embed Responsively <span class="external-arrow" aria-hidden="true">&#8599;</span></a>
+          </div>
+          <div class="tool-tags">
+            <span class="tool-tag">Responsive</span>
+            <span class="tool-tag">Embeds</span>
+            <span class="tool-tag">Video</span>
+          </div>
+        </div>
+
+        <div class="tool-card tool-card--external">
+          <span class="external-badge" aria-label="External tool">External &#8599;</span>
+          <span class="tool-icon" aria-hidden="true">🖼️</span>
+          <h3 class="tool-name">Image Alt Text</h3>
+          <p class="tool-description">AI-powered tool to generate descriptive, accessible alt text for images.</p>
+          <div class="tool-card-links">
+            <a href="https://chatgpt.com/g/g-6821f526808c81918e50e06207c3f359-image-alt-writer-2" target="_blank" rel="noopener">Image Alt Writer 2 <span class="external-arrow" aria-hidden="true">&#8599;</span></a>
+          </div>
+          <div class="tool-tags">
+            <span class="tool-tag">Accessibility</span>
+            <span class="tool-tag">AI</span>
+            <span class="tool-tag">Images</span>
+          </div>
+        </div>
+        </div>
       </section>
 <!-- SUGGESTED_TOOLS_END -->
     </main>
