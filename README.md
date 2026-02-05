@@ -1,32 +1,84 @@
-# OG Image Preview Tool
+# Web Tools
 
-A lightweight, client-side web tool that previews how Open Graph social sharing images appear across major platforms before you publish.
+A growing collection of browser-based utilities for web developers. Zero dependencies, no tracking, no server-side processing — everything runs locally in your browser.
 
-Paste any public URL and instantly see simulated link previews for Facebook, X/Twitter, LinkedIn, Bluesky, Discord, Slack, iMessage, WhatsApp, Mastodon, Threads, Telegram, and Reddit.
+**Live at:** [tools.bymarkriechers.com](https://tools.bymarkriechers.com)
 
-## Features
+---
 
-- **12 platform previews** organized by priority tier (Critical / Important / Nice-to-have)
-- **Visual warnings** for missing tags, undersized images, and wrong aspect ratios
-- **Copy-paste meta tag suggestions** for fixing detected issues
-- **Shareable result URLs** — append `?url=https://example.com` to share a preview
-- **Dark/light theme** — follows your OS preference automatically
-- **Mobile responsive** — check previews from your phone while posting
-- **Zero dependencies** — no npm, no build step, no framework
+## Tools
 
-## Quick Start
+### [OG Image Preview](https://tools.bymarkriechers.com/og-image/)
 
-### Option 1: Open directly (simplest)
+Preview how your Open Graph images will appear across 12+ social platforms before you publish.
 
-Open `index.html` in a browser. That's it.
+- **Platform previews** for Facebook, X/Twitter, LinkedIn, Bluesky, Discord, Slack, iMessage, WhatsApp, Mastodon, Threads, Telegram, and Reddit
+- **Visual warnings** for missing tags, undersized images, and incorrect aspect ratios
+- **Meta tag validation** with copy-paste suggestions for fixing issues
+- **Shareable URLs** — append `?url=https://example.com` to share a preview
+- **Platform debug tool links** for forcing cache refreshes
 
-For local development with proper file loading, use any static file server:
+### [HTML Formatter & Tidy](https://tools.bymarkriechers.com/formatter/)
+
+Beautify, format, and clean up messy or minified HTML instantly.
+
+- **Configurable indentation** — 2 spaces, 4 spaces, or tabs
+- **Tag normalization** — lowercase tags and attributes, quote unquoted values
+- **Attribute tidying** — sort alphabetically, remove empty attributes
+- **Minification** — strip all unnecessary whitespace
+- **Live preview** — see rendered HTML in a sandboxed iframe
+- **Stats** — input/output size comparison, tag count, issues fixed
+
+---
+
+## Design Principles
+
+| Principle | Implementation |
+|-----------|----------------|
+| **Zero dependencies** | No npm, no frameworks, no build step — just HTML, CSS, and vanilla JavaScript |
+| **Privacy first** | All processing happens in your browser; nothing is sent to any server |
+| **Accessible** | Semantic HTML, ARIA labels, keyboard navigation, screen reader friendly |
+| **Themeable** | Dark/light mode follows your OS preference automatically |
+| **Mobile ready** | Responsive layouts work on any screen size |
+
+---
+
+## Project Structure
+
+```
+/
+├── index.html                  # Landing page
+├── CNAME                       # Custom domain config
+├── README.md                   # This file
+│
+├── og-image/                   # OG Image Preview
+│   ├── index.html
+│   ├── styles.css
+│   ├── app.js
+│   ├── platforms.json          # Platform specifications
+│   ├── example.html            # Demo page with perfect OG setup
+│   └── functions/
+│       └── fetch-meta.js       # Optional Cloudflare Worker proxy
+│
+└── formatter/                  # HTML Formatter & Tidy
+    ├── index.html
+    ├── styles.css
+    └── app.js
+```
+
+Each tool is self-contained in its own directory with its own `index.html`, making it easy to develop, test, and deploy independently.
+
+---
+
+## Local Development
+
+No build step required. Open any `index.html` directly in a browser, or use a local server for full functionality:
 
 ```bash
-# Python 3
+# Python
 python3 -m http.server 8080
 
-# Node.js (npx, no install)
+# Node.js (npx, no install needed)
 npx serve .
 
 # PHP
@@ -35,101 +87,30 @@ php -S localhost:8080
 
 Then visit `http://localhost:8080`.
 
-### Option 2: Deploy to GitHub Pages
+---
 
-1. Push this repo to GitHub
-2. Go to Settings → Pages → Source: "Deploy from a branch"
-3. Select the branch containing these files (e.g., `main`) and root `/`
-4. Your tool will be live at `https://<username>.github.io/<repo-name>/`
+## Deployment
 
-## Architecture
+This repo is configured for GitHub Pages with a custom domain.
 
-```
-/
-├── index.html          # Single-page interface (semantic HTML, accessible)
-├── styles.css          # Minimal styling (CSS custom properties, dark/light theme)
-├── app.js              # All application logic (fetch, parse, render, validate)
-├── platforms.json      # Platform specs — update this when platforms change
-├── functions/
-│   └── fetch-meta.js   # Optional CORS proxy (Cloudflare Worker / Netlify Function)
-└── README.md           # This file
-```
+1. Push to GitHub
+2. Enable Pages in repo settings (Settings → Pages → Source: branch)
+3. Set custom domain to `tools.bymarkriechers.com`
+4. Add DNS CNAME record: `tools` → `your-username.github.io`
 
-### Why this structure?
+---
 
-- **`platforms.json` is separate** so you can update platform specs (dimensions, behaviors) without touching any rendering code
-- **`functions/` is isolated** because the CORS proxy is optional — the tool works out of the box with public proxies
-- **No build step** means you can edit and deploy by pushing files; no CI/CD pipeline needed
+## Contributing
 
-## How It Works
+Want to add a new tool? Each tool should:
 
-### The CORS Problem
+1. Live in its own `/tool-name/` directory
+2. Use the same CSS custom properties for consistent theming
+3. Work entirely client-side (no server dependencies beyond optional CORS proxies)
+4. Be accessible and mobile-responsive
 
-Browsers block JavaScript from fetching HTML across different domains (Same-Origin Policy). Since this tool needs to read `<meta>` tags from arbitrary URLs, we need a workaround.
+---
 
-### Proxy Options (in order of simplicity)
+## License
 
-| Approach | Pros | Cons | Used as |
-|----------|------|------|---------|
-| **allOrigins** (api.allorigins.win) | Free, no setup | Third-party dependency, rate limits | Default |
-| **corsproxy.io** | Free, no setup | Third-party dependency | Backup |
-| **Cloudflare Worker** (in `/functions/`) | You control it, 100K req/day free | Requires Cloudflare account + deploy | Optional |
-| **Netlify Function** | You control it, 125K req/month free | Requires Netlify account | Optional |
-
-The tool uses allOrigins by default. To use your own proxy, expand "Proxy settings" in the UI and enter your Worker URL.
-
-### Deploying Your Own Proxy (Cloudflare Worker)
-
-1. Sign up at [workers.cloudflare.com](https://workers.cloudflare.com)
-2. Create a new Worker
-3. Paste the contents of `functions/fetch-meta.js`
-4. Deploy — note the URL (e.g., `https://og-proxy.your-subdomain.workers.dev`)
-5. In the tool, select "Custom proxy" and enter: `https://og-proxy.your-subdomain.workers.dev/?url=`
-
-## Platform Tiers
-
-### Tier 1 — Critical (must be accurate)
-
-| Platform | Recommended Size | Aspect Ratio | Key Tag |
-|----------|-----------------|--------------|---------|
-| Facebook | 1200 × 630 | 1.91:1 | `og:image` |
-| X/Twitter | 1200 × 628 | 1.91:1 | `twitter:card` + `og:image` |
-| LinkedIn | 1200 × 627 | 1.91:1 | `og:image` |
-| Bluesky | 1200 × 630 | 1.91:1 | `og:image` |
-
-### Tier 2 — Important (should be accurate)
-
-| Platform | Recommended Size | Aspect Ratio | Notes |
-|----------|-----------------|--------------|-------|
-| Discord | 1200 × 630 | 1.91:1 | Respects `theme-color` for embed sidebar |
-| Slack | 1200 × 630 | 1.91:1 | Caches aggressively |
-| iMessage | 1200 × 630 | 1.91:1 | Generated by Applebot |
-| WhatsApp | 1200 × 630 | 1.91:1 | Long cache per URL |
-
-### Tier 3 — Nice to Have (best effort)
-
-Mastodon, Threads, Telegram, Reddit — all follow standard OG tags with 1.91:1 aspect ratio.
-
-## Updating Platform Specs
-
-When a platform changes its OG image handling:
-
-1. Edit `platforms.json`
-2. Find the platform by its `id` field
-3. Update `recommended` dimensions, `behavior` descriptions, or add new tags
-4. The rendering code reads specs from this file at runtime — no other changes needed
-
-## Limitations
-
-- **Previews are approximations** — actual rendering depends on platform-specific logic, device, and app version
-- **Cached OG data on platforms** — if you've shared a URL before, platforms may show cached data. Use the debug tools linked in the footer to force a refresh
-- **Sites that block scraping** — some sites return different content to bots or block requests entirely. The error message will indicate this
-- **Client-side image probing** — we check image dimensions by loading the image in the browser, which may fail for images behind authentication or aggressive CDN rules
-
-## Debug Tools
-
-Use these official tools to force platforms to re-scrape your URL after making changes:
-
-- [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/)
-- [X/Twitter Card Validator](https://cards-dev.twitter.com/validator)
-- [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/inspect/)
+MIT

@@ -3,273 +3,264 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OG Image Preview Tool</title>
+  <title>Web Tools by Mark Riechers</title>
 
-  <!--
-    OG Image Preview Tool
-    =====================
-    A lightweight, client-side tool that shows how a URL's Open Graph image
-    will appear across major social platforms (Facebook, X/Twitter, LinkedIn,
-    Bluesky, Discord, Slack, iMessage, WhatsApp, and more).
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>">
 
-    Architecture decision:
-    This is a single-page static app designed for GitHub Pages. All rendering
-    happens client-side. The only server dependency is a small CORS proxy
-    (Cloudflare Worker or similar) needed because most websites block
-    cross-origin fetches of their HTML.
-
-    Why not pure client-side?
-    Browsers enforce CORS: you can't fetch arbitrary HTML from another domain
-    with JavaScript alone. We need a proxy that fetches on the server side and
-    returns the meta tags to us. See /functions/fetch-meta.js for that proxy.
-  -->
-
-  <!-- Inline critical styles for fast first paint, then load full stylesheet -->
-  <link rel="stylesheet" href="styles.css">
-
-  <!--
-    We use zero external CSS frameworks. The styling is intentionally minimal —
-    this is a utility tool, not a marketing page. A few CSS custom properties
-    keep colors and spacing consistent without a build step.
-  -->
-
-  <!-- Favicon: simple OG-themed SVG so it works without an image file -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
-
-  <!-- OG tags for this tool itself (meta!) -->
-  <meta property="og:title" content="OG Image Preview Tool">
-  <meta property="og:description" content="See how your Open Graph images will appear on Facebook, X/Twitter, LinkedIn, Bluesky, Discord, Slack, and more.">
+  <meta property="og:title" content="Web Tools by Mark Riechers">
+  <meta property="og:description" content="A collection of lightweight, client-side web tools — no dependencies, no tracking, runs entirely in your browser.">
   <meta property="og:type" content="website">
+
+  <style>
+    /*
+     * Landing page styles
+     * Uses the same design tokens as the individual tools.
+     */
+    :root {
+      --color-bg: #0f1117;
+      --color-surface: #1a1d27;
+      --color-surface-raised: #242734;
+      --color-border: #2e3245;
+      --color-border-hover: #454b66;
+      --color-text: #e1e4ed;
+      --color-text-muted: #8b90a5;
+      --color-text-heading: #f0f2f8;
+      --color-primary: #5b8af5;
+      --color-primary-hover: #7aa2f7;
+
+      --space-sm: 8px;
+      --space-md: 16px;
+      --space-lg: 24px;
+      --space-xl: 32px;
+      --space-2xl: 48px;
+
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --text-sm: 0.8125rem;
+      --text-base: 0.9375rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.5rem;
+      --text-2xl: 1.875rem;
+
+      --max-width: 900px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --transition-fast: 150ms ease;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --color-bg: #f5f6fa;
+        --color-surface: #ffffff;
+        --color-surface-raised: #f0f1f5;
+        --color-border: #d4d7e0;
+        --color-border-hover: #b0b5c5;
+        --color-text: #1a1d27;
+        --color-text-muted: #5c6178;
+        --color-text-heading: #0f1117;
+        --color-primary: #3b6fd9;
+        --color-primary-hover: #2d5bbf;
+      }
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: var(--text-base);
+      line-height: 1.6;
+      color: var(--color-text);
+      background-color: var(--color-bg);
+      min-height: 100vh;
+      background-image: linear-gradient(
+        180deg,
+        var(--color-bg) 0%,
+        color-mix(in srgb, var(--color-bg) 95%, var(--color-primary)) 100%
+      );
+      background-attachment: fixed;
+    }
+
+    a {
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+    a:hover {
+      color: var(--color-primary-hover);
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: var(--space-md);
+    }
+
+    header {
+      padding: var(--space-2xl) 0 var(--space-xl);
+      text-align: center;
+    }
+
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: 700;
+      color: var(--color-text-heading);
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      color: var(--color-text-muted);
+      margin-top: var(--space-sm);
+      font-size: var(--text-base);
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-lg);
+      margin-top: var(--space-xl);
+    }
+
+    .tool-card {
+      display: flex;
+      flex-direction: column;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .tool-card:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+
+    .tool-icon {
+      font-size: 2.5rem;
+      margin-bottom: var(--space-md);
+    }
+
+    .tool-name {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--color-text-heading);
+      margin-bottom: var(--space-sm);
+    }
+
+    .tool-description {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      flex: 1;
+    }
+
+    .tool-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+    }
+
+    .tool-tag {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      background: var(--color-surface-raised);
+      border-radius: 999px;
+      color: var(--color-text-muted);
+    }
+
+    footer {
+      margin-top: var(--space-2xl);
+      padding: var(--space-xl) 0;
+      border-top: 1px solid var(--color-border);
+      text-align: center;
+    }
+
+    footer p {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+    }
+
+    footer p + p {
+      margin-top: var(--space-sm);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .tool-card {
+        animation: fadeIn 0.3s ease both;
+      }
+      .tool-card:nth-child(1) { animation-delay: 0ms; }
+      .tool-card:nth-child(2) { animation-delay: 100ms; }
+      .tool-card:nth-child(3) { animation-delay: 200ms; }
+      .tool-card:nth-child(4) { animation-delay: 300ms; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
 </head>
 <body>
 
-  <!--
-    Layout structure:
-    1. Header — title + brief description
-    2. Input section — URL field + fetch button + proxy selector
-    3. Results section — OG tag summary + platform preview grid
-    4. Footer — links to debug tools, source code
-  -->
+  <div class="container">
+    <header>
+      <h1>Web Tools</h1>
+      <p class="subtitle">
+        Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
+      </p>
+    </header>
 
-  <header class="app-header">
-    <h1>OG Image Preview Tool</h1>
-    <p class="subtitle">
-      Check how your link previews will look across social platforms before you publish.
-    </p>
-  </header>
+    <main>
+      <div class="tools-grid">
 
-  <main>
-    <!-- ============================================================
-         INPUT SECTION
-         The user enters a URL and clicks "Preview". We also let them
-         choose which CORS proxy to use, since different proxies have
-         different reliability and rate limits.
-         ============================================================ -->
-    <section class="input-section" aria-label="URL input">
-      <form id="url-form" class="url-form" role="search">
-        <div class="input-row">
-          <label for="url-input" class="sr-only">URL to preview</label>
-          <input
-            type="url"
-            id="url-input"
-            class="url-input"
-            placeholder="https://example.com/your-page"
-            required
-            autocomplete="url"
-            spellcheck="false"
-            aria-describedby="url-help"
-          >
-          <button type="submit" id="fetch-btn" class="btn btn-primary">
-            <span class="btn-label">Preview</span>
-            <span class="btn-loading" aria-hidden="true" hidden>
-              <!-- Simple CSS spinner, no external dependencies -->
-              <span class="spinner"></span>
-              Fetching…
-            </span>
-          </button>
-        </div>
-        <p id="url-help" class="input-help">
-          Paste any public URL to see how its Open Graph image renders on each platform,
-          or try an example:
-        </p>
-
-        <!-- Example selector — lets users load a pre-configured example
-             without needing a real URL. The example page is hosted alongside
-             this tool, so it bypasses CORS entirely (same origin). -->
-        <div class="example-selector">
-          <button type="button" class="example-btn" data-example="perfect">
-            <span class="example-btn-icon" aria-hidden="true">&#10003;</span>
-            <span>
-              <strong>Perfect setup</strong>
-              <span class="example-btn-desc">All OG tags correctly configured — see what a green-across-the-board result looks like</span>
-            </span>
-          </button>
-          <a href="example.html" class="example-link" target="_blank" rel="noopener">
-            View the example page source to see every tag explained
-          </a>
-        </div>
-      </form>
-
-      <!-- Proxy configuration — collapsed by default to reduce visual noise -->
-      <details class="proxy-config">
-        <summary>Proxy settings</summary>
-        <div class="proxy-options">
-          <p class="proxy-explanation">
-            Browsers block direct fetching of other websites' HTML (CORS policy).
-            This tool uses a lightweight proxy to read meta tags on your behalf.
-            Your URL is sent to the selected proxy — nothing is stored.
+        <a href="og-image/" class="tool-card">
+          <span class="tool-icon" aria-hidden="true">🔍</span>
+          <h2 class="tool-name">OG Image Preview</h2>
+          <p class="tool-description">
+            See how your Open Graph images will appear on Facebook, X/Twitter, LinkedIn, Discord, Slack, iMessage, and more before you publish.
           </p>
-          <fieldset>
-            <legend class="sr-only">Select CORS proxy</legend>
+          <div class="tool-tags">
+            <span class="tool-tag">Social media</span>
+            <span class="tool-tag">Meta tags</span>
+            <span class="tool-tag">SEO</span>
+          </div>
+        </a>
 
-            <label class="radio-label">
-              <input type="radio" name="proxy" value="allorigins" checked>
-              <span>allOrigins <span class="proxy-badge">Default — no key needed</span></span>
-            </label>
+        <a href="formatter/" class="tool-card">
+          <span class="tool-icon" aria-hidden="true">&lt;/&gt;</span>
+          <h2 class="tool-name">HTML Formatter &amp; Tidy</h2>
+          <p class="tool-description">
+            Beautify, format, and clean up messy HTML. Fix common markup issues and get clean, readable code instantly.
+          </p>
+          <div class="tool-tags">
+            <span class="tool-tag">HTML</span>
+            <span class="tool-tag">Formatting</span>
+            <span class="tool-tag">Code cleanup</span>
+          </div>
+        </a>
 
-            <label class="radio-label">
-              <input type="radio" name="proxy" value="corsproxy">
-              <span>corsproxy.io <span class="proxy-badge">Backup</span></span>
-            </label>
-
-            <label class="radio-label">
-              <input type="radio" name="proxy" value="custom">
-              <span>Custom proxy URL</span>
-            </label>
-
-            <div id="custom-proxy-field" class="custom-proxy-field" hidden>
-              <label for="custom-proxy-url" class="sr-only">Custom proxy URL</label>
-              <input
-                type="url"
-                id="custom-proxy-url"
-                placeholder="https://your-worker.your-subdomain.workers.dev/?url="
-                class="url-input"
-              >
-              <p class="input-help">
-                Deploy the Cloudflare Worker from <code>/functions/fetch-meta.js</code>
-                and paste its URL here. Append <code>?url=</code> — the target URL
-                will be added automatically.
-              </p>
-            </div>
-          </fieldset>
-        </div>
-      </details>
-    </section>
-
-    <!-- ============================================================
-         ERROR DISPLAY
-         Shows user-friendly messages when things go wrong.
-         Hidden by default, shown via JS when errors occur.
-         ============================================================ -->
-    <section id="error-section" class="error-section" hidden aria-live="polite">
-      <div class="error-card">
-        <span class="error-icon" aria-hidden="true">!</span>
-        <div>
-          <p id="error-title" class="error-title"></p>
-          <p id="error-detail" class="error-detail"></p>
-        </div>
-        <button id="error-dismiss" class="error-dismiss" aria-label="Dismiss error">&times;</button>
       </div>
-    </section>
+    </main>
 
-    <!-- ============================================================
-         OG TAG SUMMARY
-         Before showing platform previews, we display the raw OG data
-         we found. This helps users understand what data is available
-         and what's missing — a diagnostic view.
-         ============================================================ -->
-    <section id="meta-summary" class="meta-summary" hidden aria-label="Detected meta tags">
-      <h2>Detected Open Graph Tags</h2>
-      <div id="meta-tags-grid" class="meta-tags-grid">
-        <!-- Populated by JavaScript -->
-      </div>
-    </section>
-
-    <!-- ============================================================
-         PLATFORM PREVIEWS
-         A grid of cards, one per platform. Each card simulates how
-         the link preview would appear on that platform, using the
-         platform's actual aspect ratio and cropping behavior.
-         Organized by tier (Critical → Important → Nice-to-have).
-         ============================================================ -->
-    <section id="previews-section" class="previews-section" hidden aria-label="Platform previews">
-      <div class="previews-header">
-        <h2>Platform Previews</h2>
-
-        <!-- Tier filter tabs -->
-        <div class="tier-tabs" role="tablist" aria-label="Filter by platform tier">
-          <button role="tab" class="tier-tab active" data-tier="all" aria-selected="true">
-            All Platforms
-          </button>
-          <button role="tab" class="tier-tab" data-tier="1" aria-selected="false">
-            Tier 1 — Critical
-          </button>
-          <button role="tab" class="tier-tab" data-tier="2" aria-selected="false">
-            Tier 2 — Important
-          </button>
-          <button role="tab" class="tier-tab" data-tier="3" aria-selected="false">
-            Tier 3 — Nice to Have
-          </button>
-        </div>
-      </div>
-
-      <div id="previews-grid" class="previews-grid" role="tabpanel">
-        <!-- Platform preview cards are generated by JavaScript -->
-      </div>
-
-      <!-- Copy a plain-text report of the results for pasting into
-           Claude Code, a GitHub issue, Slack, etc. -->
-      <div class="copy-report-row">
-        <button type="button" id="copy-report-btn" class="btn btn-copy-report">
-          <span id="copy-report-label">Copy text report</span>
-        </button>
-        <span class="copy-report-hint">
-          Plain-text summary of all tags and platform results — paste into Claude Code, a GitHub issue, or anywhere text works.
-        </span>
-      </div>
-    </section>
-
-    <!-- ============================================================
-         META TAG SUGGESTIONS
-         When we detect missing or suboptimal tags, we generate
-         copy-paste-ready HTML that the user can add to their page.
-         ============================================================ -->
-    <section id="suggestions-section" class="suggestions-section" hidden aria-label="Suggested meta tags">
-      <h2>Suggested Meta Tags</h2>
-      <p class="suggestions-intro">
-        Copy these tags into your page's <code>&lt;head&gt;</code> to improve previews:
-      </p>
-      <div class="code-block-wrapper">
-        <pre id="suggestions-code" class="code-block"></pre>
-        <button id="copy-suggestions" class="btn btn-small">Copy to clipboard</button>
-      </div>
-    </section>
-  </main>
-
-  <footer class="app-footer">
-    <div class="footer-content">
+    <footer>
       <p>
-        <strong>Platform debug tools:</strong>
-        <a href="https://developers.facebook.com/tools/debug/" target="_blank" rel="noopener">Facebook Debugger</a> ·
-        <a href="https://cards-dev.twitter.com/validator" target="_blank" rel="noopener">X/Twitter Validator</a> ·
-        <a href="https://www.linkedin.com/post-inspector/inspect/" target="_blank" rel="noopener">LinkedIn Inspector</a>
+        All tools process data locally in your browser — nothing is sent to a server.
       </p>
-      <p class="footer-note">
-        Previews are approximations — actual rendering may vary slightly.
-        Platforms may cache OG data; use the debug tools above to force a refresh.
-      </p>
-      <p class="footer-note">
+      <p>
         <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
       </p>
-    </div>
-  </footer>
+    </footer>
+  </div>
 
-  <!--
-    Script loading strategy:
-    We load app.js at the end of body (not in head) so the DOM is ready
-    without needing DOMContentLoaded listeners. No module bundler needed —
-    this is plain ES6+ JavaScript that works in all modern browsers.
-  -->
-  <script src="app.js"></script>
 </body>
 </html>
