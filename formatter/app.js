@@ -251,6 +251,12 @@ function getOptions() {
     trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
     newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
     indentInnerHtml: document.getElementById('opt-indent-inner-html').checked,
+    // CMS cleaning options
+    removeStyles: document.getElementById('opt-remove-styles').checked,
+    removeClasses: document.getElementById('opt-remove-classes').checked,
+    removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
+    removeIds: document.getElementById('opt-remove-ids').checked,
+    unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
   };
 }
 
@@ -262,6 +268,13 @@ function formatAttributes(attrs, opts) {
     let name = opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name;
     let value = attr.value;
     let quote = attr.quote;
+
+    // CMS cleaning: strip specific attribute types
+    const lowerName = name.toLowerCase();
+    if (opts.removeStyles && lowerName === 'style') return null;
+    if (opts.removeClasses && lowerName === 'class') return null;
+    if (opts.removeIds && lowerName === 'id') return null;
+    if (opts.removeDataAttrs && lowerName.startsWith('data-')) return null;
 
     // Remove empty attributes if option is set
     if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(name)) {
@@ -347,6 +360,7 @@ function format(tokens, opts) {
   let indentLevel = 0;
   let fixCount = 0;
   let tagCount = 0;
+  let unwrappedSpanDepth = 0; // tracks spans being unwrapped
   const indent = () => opts.indentChar.repeat(opts.indentSize * indentLevel);
 
   // Track which structural elements affect indentation
@@ -399,7 +413,6 @@ function format(tokens, opts) {
         // Check for empty tags that should be removed
         if (opts.removeEmptyTags) {
           const nextToken = tokens[i + 1];
-          const nextNextToken = tokens[i + 2];
           if (nextToken && nextToken.type === TokenType.CLOSE_TAG &&
               nextToken.tagName.toLowerCase() === lowerName &&
               !VOID_ELEMENTS.has(lowerName) &&
@@ -407,6 +420,17 @@ function format(tokens, opts) {
             fixCount++;
             i++; // Skip the close tag too
             break;
+          }
+        }
+
+        // Unwrap spans: if the span has no meaningful attributes left after
+        // cleaning, skip the opening tag (and mark for closing tag skip)
+        if (opts.unwrapSpans && lowerName === 'span') {
+          const remainingAttrs = formatAttributes(token.attributes || [], opts);
+          if (remainingAttrs.length === 0) {
+            fixCount++;
+            unwrappedSpanDepth++;
+            break; // Skip the <span> tag, its content will flow through
           }
         }
 
@@ -427,6 +451,12 @@ function format(tokens, opts) {
         // Void elements shouldn't have closing tags
         if (VOID_ELEMENTS.has(lowerName)) {
           fixCount++;
+          break;
+        }
+
+        // Skip closing tags for unwrapped spans
+        if (lowerName === 'span' && unwrappedSpanDepth > 0) {
+          unwrappedSpanDepth--;
           break;
         }
 
@@ -640,9 +670,30 @@ function init() {
     }
   });
 
-  // Paste button
+  // Paste button — tries to read HTML from clipboard first
   btnPaste.addEventListener('click', async () => {
     try {
+      // Try the modern Clipboard API for rich content
+      if (navigator.clipboard && navigator.clipboard.read) {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          if (item.types.includes('text/html')) {
+            const blob = await item.getType('text/html');
+            const html = await blob.text();
+            // Extract fragment if markers exist
+            let cleaned = html;
+            const fragStart = cleaned.indexOf('<!--StartFragment-->');
+            const fragEnd = cleaned.indexOf('<!--EndFragment-->');
+            if (fragStart !== -1 && fragEnd !== -1) {
+              cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
+            }
+            inputEditor.value = cleaned.trim();
+            inputEditor.focus();
+            return;
+          }
+        }
+      }
+      // Fall back to plain text
       const text = await navigator.clipboard.readText();
       inputEditor.value = text;
       inputEditor.focus();
@@ -709,6 +760,39 @@ function init() {
 
   // Dismiss error
   errorDismiss.addEventListener('click', hideError);
+
+  // ---- Rich text paste support ----
+  // When the user pastes rich text (from Word, Google Docs, a webpage, etc.)
+  // we want the HTML markup, not the plain text fallback.
+  inputEditor.addEventListener('paste', (e) => {
+    const clipboardData = e.clipboardData || window.clipboardData;
+    if (!clipboardData) return;
+
+    const html = clipboardData.getData('text/html');
+    if (html && html.trim()) {
+      e.preventDefault();
+
+      // Extract meaningful content from the pasted HTML.
+      // Clipboard HTML often wraps content in <html><body> boilerplate
+      // with <!--StartFragment-->...<!--EndFragment--> markers.
+      let cleaned = html;
+
+      // Extract just the fragment if markers exist
+      const fragStart = cleaned.indexOf('<!--StartFragment-->');
+      const fragEnd = cleaned.indexOf('<!--EndFragment-->');
+      if (fragStart !== -1 && fragEnd !== -1) {
+        cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
+      }
+
+      // Insert at cursor position (or replace selection)
+      const start = inputEditor.selectionStart;
+      const end = inputEditor.selectionEnd;
+      inputEditor.value = inputEditor.value.substring(0, start) + cleaned.trim() + inputEditor.value.substring(end);
+      inputEditor.selectionStart = inputEditor.selectionEnd = start + cleaned.trim().length;
+      inputEditor.dispatchEvent(new Event('input'));
+    }
+    // If no HTML data, let the default plain-text paste happen
+  });
 
   // Keyboard shortcut: Ctrl/Cmd + Enter to format
   inputEditor.addEventListener('keydown', (e) => {
