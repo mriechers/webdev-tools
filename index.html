@@ -194,6 +194,33 @@
       margin-top: var(--space-sm);
     }
 
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      margin-bottom: var(--space-md);
+      border: 2px solid var(--color-border);
+      transition: border-color var(--transition-fast);
+    }
+
+    .logo:hover {
+      border-color: var(--color-primary);
+    }
+
+    .footer-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: var(--space-sm);
+      border: 1px solid var(--color-border);
+    }
+
+    .author-link {
+      display: inline-flex;
+      align-items: center;
+    }
+
     @media (prefers-reduced-motion: no-preference) {
       .tool-card {
         animation: fadeIn 0.3s ease both;
@@ -214,6 +241,9 @@
 
   <div class="container">
     <header>
+      <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener">
+        <img src="https://avatars.githubusercontent.com/u/6778715?s=128" alt="Mark Riechers" class="logo">
+      </a>
       <h1>Web Tools</h1>
       <p class="subtitle">
         Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
@@ -255,6 +285,12 @@
     <footer>
       <p>
         All tools process data locally in your browser — nothing is sent to a server.
+      </p>
+      <p>
+        <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener" class="author-link">
+          <img src="https://avatars.githubusercontent.com/u/6778715?s=64" alt="" class="footer-logo">
+          Made by Mark Riechers
+        </a>
       </p>
       <p>
         <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
