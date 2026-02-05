@@ -194,6 +194,64 @@
       margin-top: var(--space-sm);
     }
 
+    .logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin-bottom: var(--space-md);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .logo {
+        filter: invert(1);
+      }
+    }
+
+    .section-heading {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--color-text-heading);
+      margin-bottom: var(--space-md);
+    }
+
+    .suggested-tools {
+      margin-top: var(--space-2xl);
+    }
+
+    .suggested-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm) var(--space-lg);
+      list-style: none;
+    }
+
+    .suggested-list li {
+      font-size: var(--text-sm);
+    }
+
+    .suggested-list a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      color: var(--color-text);
+      transition: border-color var(--transition-fast);
+    }
+
+    .suggested-list a:hover {
+      border-color: var(--color-primary);
+      text-decoration: none;
+      color: var(--color-primary-hover);
+    }
+
+    .suggested-list .external-icon {
+      font-size: 0.7rem;
+      color: var(--color-text-muted);
+    }
+
     @media (prefers-reduced-motion: no-preference) {
       .tool-card {
         animation: fadeIn 0.3s ease both;
@@ -214,6 +272,7 @@
 
   <div class="container">
     <header>
+      <img src="assets/images/logo.png" alt="Mark Riechers" class="logo">
       <h1>Web Tools</h1>
       <p class="subtitle">
         Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
@@ -250,6 +309,15 @@
         </a>
 
       </div>
+
+      <section class="suggested-tools">
+        <h2 class="section-heading">Suggested Tools</h2>
+        <ul class="suggested-list">
+          <li><a href="https://www.castfeedvalidator.com/" target="_blank" rel="noopener">Cast Feed Validator <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
+          <li><a href="https://validator.w3.org/feed/" target="_blank" rel="noopener">W3C Feed Validator <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
+          <li><a href="https://embedresponsively.com/" target="_blank" rel="noopener">Embed Responsively <span class="external-icon" aria-hidden="true">&#8599;</span></a></li>
+        </ul>
+      </section>
     </main>
 
     <footer>
