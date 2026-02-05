@@ -195,61 +195,30 @@
     }
 
     .logo {
-      width: 80px;
-      height: 80px;
+      width: 64px;
+      height: 64px;
       border-radius: 50%;
       margin-bottom: var(--space-md);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .logo {
-        filter: invert(1);
-      }
-    }
-
-    .section-heading {
-      font-size: var(--text-lg);
-      font-weight: 600;
-      color: var(--color-text-heading);
-      margin-bottom: var(--space-md);
-    }
-
-    .suggested-tools {
-      margin-top: var(--space-2xl);
-    }
-
-    .suggested-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-sm) var(--space-lg);
-      list-style: none;
-    }
-
-    .suggested-list li {
-      font-size: var(--text-sm);
-    }
-
-    .suggested-list a {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
-      color: var(--color-text);
+      border: 2px solid var(--color-border);
       transition: border-color var(--transition-fast);
     }
 
-    .suggested-list a:hover {
+    .logo:hover {
       border-color: var(--color-primary);
-      text-decoration: none;
-      color: var(--color-primary-hover);
     }
 
-    .suggested-list .external-icon {
-      font-size: 0.7rem;
-      color: var(--color-text-muted);
+    .footer-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: var(--space-sm);
+      border: 1px solid var(--color-border);
+    }
+
+    .author-link {
+      display: inline-flex;
+      align-items: center;
     }
 
     @media (prefers-reduced-motion: no-preference) {
@@ -272,7 +241,9 @@
 
   <div class="container">
     <header>
-      <img src="assets/images/logo.png" alt="Mark Riechers" class="logo">
+      <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener">
+        <img src="https://avatars.githubusercontent.com/u/6778715?s=128" alt="Mark Riechers" class="logo">
+      </a>
       <h1>Web Tools</h1>
       <p class="subtitle">
         Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
@@ -323,6 +294,12 @@
     <footer>
       <p>
         All tools process data locally in your browser — nothing is sent to a server.
+      </p>
+      <p>
+        <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener" class="author-link">
+          <img src="https://avatars.githubusercontent.com/u/6778715?s=64" alt="" class="footer-logo">
+          Made by Mark Riechers
+        </a>
       </p>
       <p>
         <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
