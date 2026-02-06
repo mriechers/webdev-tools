@@ -194,31 +194,33 @@
       margin-top: var(--space-sm);
     }
 
-    .logo {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      margin-bottom: var(--space-md);
-      border: 2px solid var(--color-border);
-      transition: border-color var(--transition-fast);
+    .header-logo {
+      width: 140px;
+      height: auto;
+      margin-bottom: var(--space-lg);
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      filter: invert(1);
     }
 
-    .logo:hover {
-      border-color: var(--color-primary);
+    .footer-credit {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
     }
 
     .footer-logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      vertical-align: middle;
-      margin-right: var(--space-sm);
-      border: 1px solid var(--color-border);
+      width: 28px;
+      height: 28px;
+      filter: invert(1);
     }
 
-    .author-link {
-      display: inline-flex;
-      align-items: center;
+    @media (prefers-color-scheme: light) {
+      .header-logo,
+      .footer-logo {
+        filter: none;
+      }
     }
 
     @media (prefers-reduced-motion: no-preference) {
@@ -330,10 +332,8 @@
 
   <div class="container">
     <header>
-      <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener">
-        <img src="assets/images/logo.png" alt="Mark Riechers" class="logo">
-      </a>
-      <h1>Web Tools</h1>
+      <img src="assets/images/logo.png" alt="Mark Riechers logo" class="header-logo">
+      <h1>Simple Web Publishing Tools</h1>
       <p class="subtitle">
         Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
       </p>
@@ -428,11 +428,9 @@
       <p>
         All tools process data locally in your browser — nothing is sent to a server.
       </p>
-      <p>
-        <a href="https://github.com/MarkOnFire" target="_blank" rel="noopener" class="author-link">
-          <img src="assets/images/logo.png" alt="" class="footer-logo">
-          Made by Mark Riechers
-        </a>
+      <p class="footer-credit">
+        <img src="assets/images/logo-small.png" alt="" class="footer-logo">
+        Made by Mark Riechers
       </p>
       <p>
         <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
