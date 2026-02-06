@@ -558,60 +558,56 @@ function minify(html) {
 // Wires DOM elements to the formatter.
 // ============================================================
 
-const EXAMPLE_HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <META CHARSET="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <TITLE>My Page</TITLE>
-  <link rel="stylesheet" href="styles.css" />
-  <style>
-    body { margin: 0; font-family: sans-serif; }
-    .container { max-width: 1200px; margin: auto; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <nav>
-        <a href="/">Home</a><a href="/about">About</a><a href="/contact"  >Contact</a>
-      </nav>
-      <H1 CLASS="title">Welcome to My Website</H1>
-      <p>This is a <strong>sample page</strong> with <em>mixed case tags</em>,
-      inconsistent   spacing, and  various  formatting  issues.</p>
-    </header>
-    <main>
-      <section id="features">
-        <h2>Features</h2>
-        <ul>
-          <li>Fast loading</li><li>Responsive design</li><li>Accessible markup</li>
-        </ul>
-        <img src="hero.jpg" alt="Hero image" WIDTH="1200" HEIGHT="630">
-        <BR>
-        <INPUT type="text" placeholder="Search..." name="q" class="" id="">
-      </section>
-      <section id="content">
-        <article>
-          <h3>Latest Post</h3>
-          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-          <a HREF="https://example.com" TARGET="_blank" REL="noopener">Read more</a>
-        </article>
-        <div></div>
-        <!-- TODO: add sidebar -->
-      </section>
-    </main>
-    <footer>
-      <p>&copy; 2025 My Website. All rights reserved.</p>
-    </footer>
-  </div>
-  <script>
-    console.log("Hello world");
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("Ready!");
-    });
-  </script>
-</body>
-</html>`;
+/**
+ * Rich text example — rendered visually in the contenteditable input.
+ * Simulates what you'd get pasting from a word processor or CMS.
+ */
+const EXAMPLE_RICH_HTML = `<h1 style="font-size:24px;color:#333" CLASS="title">Welcome to My Website</h1>
+<p style="margin-bottom:12px">This is a <strong>sample page</strong> with <em>mixed formatting</em>,
+<span style="color:red;font-weight:bold" class="highlight">inline styles</span>, and various issues that need cleaning.</p>
+<h2>Features</h2>
+<ul>
+  <li>Fast loading</li>
+  <li>Responsive design</li>
+  <li>Accessible markup</li>
+</ul>
+<p>Visit <a HREF="https://example.com" TARGET="_blank" REL="noopener" style="color:blue">our website</a> for more information.</p>
+<p data-source="cms" class="body-text" id="intro">This paragraph has <span style="font-weight:bold"><span class="">unnecessary wrapper spans</span></span> and extra attributes that should be cleaned up.</p>
+<div></div>
+<!-- TODO: add sidebar -->`;
+
+/**
+ * Get the HTML content from the contenteditable input.
+ * Returns trimmed innerHTML.
+ */
+function getInputHTML(el) {
+  // innerHTML is used intentionally — this is a rich text editing tool
+  // where rendering user-pasted HTML is the core functionality.
+  // All processing is client-side; nothing is sent to a server.
+  return el.innerHTML.trim();
+}
+
+/**
+ * Set the HTML content of the contenteditable input.
+ * innerHTML is safe here — this is a local-only HTML editing tool.
+ */
+function setInputHTML(el, html) {
+  el.innerHTML = html; // eslint-disable-line no-unsanitized/property
+}
+
+/**
+ * Strip clipboard HTML boilerplate (StartFragment/EndFragment markers
+ * and surrounding <html><body> wrappers).
+ */
+function cleanClipboardHTML(html) {
+  let cleaned = html;
+  const fragStart = cleaned.indexOf('<!--StartFragment-->');
+  const fragEnd = cleaned.indexOf('<!--EndFragment-->');
+  if (fragStart !== -1 && fragEnd !== -1) {
+    cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
+  }
+  return cleaned.trim();
+}
 
 function init() {
   const inputEditor = document.getElementById('input-editor');
@@ -628,11 +624,11 @@ function init() {
   const errorSection = document.getElementById('error-section');
   const errorDismiss = document.getElementById('error-dismiss');
 
-  // Format button
+  // Format button — extract HTML from the rich text input and clean it
   btnFormat.addEventListener('click', () => {
-    const html = inputEditor.value;
-    if (!html.trim()) {
-      showError('No input', 'Paste some HTML into the input pane first.');
+    const html = getInputHTML(inputEditor);
+    if (!html) {
+      showError('No input', 'Paste some rich text or HTML into the input pane first.');
       return;
     }
     hideError();
@@ -650,9 +646,9 @@ function init() {
 
   // Minify button
   btnMinify.addEventListener('click', () => {
-    const html = inputEditor.value;
-    if (!html.trim()) {
-      showError('No input', 'Paste some HTML into the input pane first.');
+    const html = getInputHTML(inputEditor);
+    if (!html) {
+      showError('No input', 'Paste some rich text or HTML into the input pane first.');
       return;
     }
     hideError();
@@ -670,24 +666,16 @@ function init() {
     }
   });
 
-  // Paste button — tries to read HTML from clipboard first
+  // Paste button — reads HTML from clipboard and inserts as rich text
   btnPaste.addEventListener('click', async () => {
     try {
-      // Try the modern Clipboard API for rich content
       if (navigator.clipboard && navigator.clipboard.read) {
         const items = await navigator.clipboard.read();
         for (const item of items) {
           if (item.types.includes('text/html')) {
             const blob = await item.getType('text/html');
             const html = await blob.text();
-            // Extract fragment if markers exist
-            let cleaned = html;
-            const fragStart = cleaned.indexOf('<!--StartFragment-->');
-            const fragEnd = cleaned.indexOf('<!--EndFragment-->');
-            if (fragStart !== -1 && fragEnd !== -1) {
-              cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
-            }
-            inputEditor.value = cleaned.trim();
+            setInputHTML(inputEditor, cleanClipboardHTML(html));
             inputEditor.focus();
             return;
           }
@@ -695,23 +683,22 @@ function init() {
       }
       // Fall back to plain text
       const text = await navigator.clipboard.readText();
-      inputEditor.value = text;
+      inputEditor.textContent = text;
       inputEditor.focus();
     } catch {
-      // Fallback — just focus the textarea so user can Ctrl+V
       inputEditor.focus();
     }
   });
 
-  // Load example
+  // Load example — show rendered rich text
   btnLoadExample.addEventListener('click', () => {
-    inputEditor.value = EXAMPLE_HTML;
+    setInputHTML(inputEditor, EXAMPLE_RICH_HTML);
     inputEditor.focus();
   });
 
   // Clear input
   btnClearInput.addEventListener('click', () => {
-    inputEditor.value = '';
+    setInputHTML(inputEditor, '');
     outputEditor.value = '';
     document.getElementById('stats-section').hidden = true;
     document.getElementById('preview-section').hidden = true;
@@ -740,11 +727,11 @@ function init() {
     URL.revokeObjectURL(url);
   });
 
-  // Use output as input
+  // Use output as input — renders the cleaned HTML back as rich text
   btnUseAsInput.addEventListener('click', () => {
     const text = outputEditor.value;
     if (!text) return;
-    inputEditor.value = text;
+    setInputHTML(inputEditor, text);
     outputEditor.value = '';
     document.getElementById('stats-section').hidden = true;
     inputEditor.focus();
@@ -761,9 +748,9 @@ function init() {
   // Dismiss error
   errorDismiss.addEventListener('click', hideError);
 
-  // ---- Rich text paste support ----
-  // When the user pastes rich text (from Word, Google Docs, a webpage, etc.)
-  // we want the HTML markup, not the plain text fallback.
+  // ---- Rich text paste handler ----
+  // Intercept paste to strip clipboard boilerplate (StartFragment markers,
+  // <html><body> wrappers) while preserving the rich text formatting.
   inputEditor.addEventListener('paste', (e) => {
     const clipboardData = e.clipboardData || window.clipboardData;
     if (!clipboardData) return;
@@ -771,25 +758,9 @@ function init() {
     const html = clipboardData.getData('text/html');
     if (html && html.trim()) {
       e.preventDefault();
-
-      // Extract meaningful content from the pasted HTML.
-      // Clipboard HTML often wraps content in <html><body> boilerplate
-      // with <!--StartFragment-->...<!--EndFragment--> markers.
-      let cleaned = html;
-
-      // Extract just the fragment if markers exist
-      const fragStart = cleaned.indexOf('<!--StartFragment-->');
-      const fragEnd = cleaned.indexOf('<!--EndFragment-->');
-      if (fragStart !== -1 && fragEnd !== -1) {
-        cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
-      }
-
-      // Insert at cursor position (or replace selection)
-      const start = inputEditor.selectionStart;
-      const end = inputEditor.selectionEnd;
-      inputEditor.value = inputEditor.value.substring(0, start) + cleaned.trim() + inputEditor.value.substring(end);
-      inputEditor.selectionStart = inputEditor.selectionEnd = start + cleaned.trim().length;
-      inputEditor.dispatchEvent(new Event('input'));
+      const cleaned = cleanClipboardHTML(html);
+      // Insert cleaned HTML at the current cursor position
+      document.execCommand('insertHTML', false, cleaned);
     }
     // If no HTML data, let the default plain-text paste happen
   });
@@ -799,16 +770,6 @@ function init() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       btnFormat.click();
-    }
-    // Allow Tab to insert a tab character in the textarea
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const start = inputEditor.selectionStart;
-      const end = inputEditor.selectionEnd;
-      const indentSel = document.getElementById('indent-size').value;
-      const insertStr = indentSel === 'tab' ? '\t' : ' '.repeat(parseInt(indentSel, 10));
-      inputEditor.value = inputEditor.value.substring(0, start) + insertStr + inputEditor.value.substring(end);
-      inputEditor.selectionStart = inputEditor.selectionEnd = start + insertStr.length;
     }
   });
 }

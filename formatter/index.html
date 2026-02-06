@@ -31,7 +31,7 @@
   <header class="app-header">
     <h1>HTML Formatter &amp; Tidy</h1>
     <p class="subtitle">
-      Paste rich text or raw HTML, strip unwanted styles, and get clean markup for your CMS.
+      Paste rich text from any source, strip unwanted styles, and get clean HTML for your CMS.
     </p>
   </header>
 
@@ -172,16 +172,14 @@
             </div>
           </div>
           <div class="textarea-wrapper">
-            <textarea
+            <div
               id="input-editor"
-              class="editor-textarea"
-              placeholder="Paste rich text or HTML here — rich text is automatically converted to markup..."
+              class="editor-richtext"
+              contenteditable="true"
+              data-placeholder="Paste rich text here — formatting will be preserved. Click Format to generate clean HTML..."
               spellcheck="false"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-              aria-label="HTML input"
-            ></textarea>
+              aria-label="Rich text input"
+            ></div>
           </div>
         </div>
 

@@ -321,6 +321,46 @@ main,
   position: relative;
 }
 
+/* Rich text input (contenteditable) */
+.editor-richtext {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: none;
+  outline: none;
+  overflow: auto;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  -webkit-user-modify: read-write;
+}
+
+.editor-richtext:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  display: block;
+}
+
+.editor-richtext:focus {
+  background: color-mix(in srgb, var(--color-bg) 95%, var(--color-primary));
+}
+
+/* Make pasted content look reasonable */
+.editor-richtext img {
+  max-width: 100%;
+  height: auto;
+}
+
+.editor-richtext a {
+  color: var(--color-primary);
+}
+
+/* HTML source output (textarea) */
 .editor-textarea {
   flex: 1;
   width: 100%;
