@@ -335,7 +335,8 @@ main,
   resize: none;
   tab-size: 2;
   -moz-tab-size: 2;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
   overflow: auto;
 }
 
