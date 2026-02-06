@@ -9,8 +9,8 @@
     HTML Formatter & Tidy
     =====================
     A lightweight, client-side HTML formatting and tidying tool.
-    Beautifies messy or minified HTML, fixes common markup issues,
-    and gives you clean, readable code — all in the browser.
+    Paste rich text from documents and get clean HTML for your CMS,
+    or beautify messy/minified HTML and fix common markup issues.
 
     Zero dependencies. No build step. Pure HTML/CSS/JavaScript.
     Designed to run on GitHub Pages.
@@ -23,7 +23,7 @@
 
   <!-- OG tags -->
   <meta property="og:title" content="HTML Formatter & Tidy">
-  <meta property="og:description" content="Beautify, format, and clean up HTML code in your browser. Zero dependencies, no server needed.">
+  <meta property="og:description" content="Paste rich text or HTML, strip inline styles and classes, and get clean markup for your CMS. Zero dependencies, all in-browser.">
   <meta property="og:type" content="website">
 </head>
 <body>
@@ -31,7 +31,7 @@
   <header class="app-header">
     <h1>HTML Formatter &amp; Tidy</h1>
     <p class="subtitle">
-      Paste messy HTML, get clean, readable markup — entirely in your browser.
+      Paste rich text or raw HTML, strip unwanted styles, and get clean markup for your CMS.
     </p>
   </header>
 
@@ -92,6 +92,18 @@
           <input type="checkbox" id="opt-unquoted-to-quoted" checked>
           <span>Quote attributes</span>
         </label>
+
+        <div class="option-divider" aria-hidden="true"></div>
+
+        <label class="option-checkbox">
+          <input type="checkbox" id="opt-remove-styles">
+          <span>Remove inline styles</span>
+        </label>
+
+        <label class="option-checkbox">
+          <input type="checkbox" id="opt-remove-classes">
+          <span>Remove classes</span>
+        </label>
       </div>
 
       <!-- Advanced options — collapsed by default -->
@@ -122,6 +134,23 @@
             <input type="checkbox" id="opt-indent-inner-html" checked>
             <span>Indent &lt;head&gt; and &lt;body&gt; children</span>
           </label>
+
+          <div class="option-divider" aria-hidden="true"></div>
+
+          <label class="option-checkbox">
+            <input type="checkbox" id="opt-remove-data-attrs">
+            <span>Remove data-* attributes</span>
+          </label>
+
+          <label class="option-checkbox">
+            <input type="checkbox" id="opt-remove-ids">
+            <span>Remove id attributes</span>
+          </label>
+
+          <label class="option-checkbox">
+            <input type="checkbox" id="opt-unwrap-spans">
+            <span>Unwrap empty &lt;span&gt; tags</span>
+          </label>
         </div>
       </details>
     </section>
@@ -137,7 +166,7 @@
           <div class="pane-header">
             <span class="pane-title">Input</span>
             <div class="pane-actions">
-              <button type="button" id="btn-paste" class="btn btn-small" title="Paste from clipboard">Paste</button>
+              <button type="button" id="btn-paste" class="btn btn-small" title="Paste from clipboard (captures rich text as HTML)">Paste</button>
               <button type="button" id="btn-load-example" class="btn btn-small" title="Load example HTML">Example</button>
               <button type="button" id="btn-clear-input" class="btn btn-small" title="Clear input">Clear</button>
             </div>
@@ -146,7 +175,7 @@
             <textarea
               id="input-editor"
               class="editor-textarea"
-              placeholder="Paste your HTML here..."
+              placeholder="Paste rich text or HTML here — rich text is automatically converted to markup..."
               spellcheck="false"
               autocomplete="off"
               autocorrect="off"
