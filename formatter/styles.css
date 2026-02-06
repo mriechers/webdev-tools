@@ -3,7 +3,8 @@
  * ================================
  * Reuses the exact design tokens from the OG Image Preview Tool.
  * Same dark-first theme, same spacing grid, same type scale.
- * Additional styles for the two-pane editor layout.
+ * Additional styles for the two-pane editor layout,
+ * syntax highlighting overlay, and split button dropdown.
  */
 
 /* ============================================================
@@ -45,6 +46,13 @@
   --text-2xl: 1.875rem;
   --line-height: 1.6;
 
+  /* Shared editor metrics — textarea and pre MUST match */
+  --editor-font: var(--font-mono);
+  --editor-size: var(--text-sm);
+  --editor-line-height: 1.6;
+  --editor-padding: var(--space-md);
+  --editor-tab-size: 2;
+
   /* Layout */
   --max-width: 1400px;
   --radius-sm: 6px;
@@ -54,6 +62,13 @@
   /* Transitions */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
+
+  /* Syntax highlighting — dark theme */
+  --hl-tag: #f07178;
+  --hl-attr: #c792ea;
+  --hl-value: #c3e88d;
+  --hl-comment: #546e7a;
+  --hl-bracket: #89ddff;
 }
 
 /* Light theme override — respects OS preference */
@@ -73,6 +88,13 @@
     --color-warning: #ca8a04;
     --color-error: #dc2626;
     --color-info: #2563eb;
+
+    /* Syntax highlighting — light theme */
+    --hl-tag: #c41a16;
+    --hl-attr: #7928a1;
+    --hl-value: #3a7d0a;
+    --hl-comment: #8e908c;
+    --hl-bracket: #0550ae;
   }
 }
 
@@ -173,22 +195,19 @@ main,
 }
 
 /* ============================================================
-   OPTIONS SECTION
-   Formatting controls — horizontal bar of options.
+   FORMATTING BAR
+   Compact single-row bar with indent-size + wrap-length.
+   Replaces the old full options section.
    ============================================================ */
-.options-section {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md) var(--space-lg);
-  margin-bottom: var(--space-md);
-}
-
-.options-bar {
+.formatting-bar {
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  flex-wrap: wrap;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-lg);
+  margin-bottom: var(--space-md);
 }
 
 .option-group {
@@ -222,13 +241,7 @@ main,
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
-.option-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--color-border);
-  flex-shrink: 0;
-}
-
+/* Checkbox labels — used in tidy dropdown */
 .option-checkbox {
   display: flex;
   align-items: center;
@@ -242,31 +255,6 @@ main,
 .option-checkbox input[type="checkbox"] {
   accent-color: var(--color-primary);
   cursor: pointer;
-}
-
-/* Advanced options — collapsed */
-.advanced-config {
-  margin-top: var(--space-md);
-  border-top: 1px solid var(--color-border);
-  padding-top: var(--space-md);
-}
-
-.advanced-config summary {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  cursor: pointer;
-  user-select: none;
-}
-
-.advanced-config summary:hover {
-  color: var(--color-text);
-}
-
-.advanced-options {
-  margin-top: var(--space-md);
-  display: flex;
-  gap: var(--space-md);
-  flex-wrap: wrap;
 }
 
 /* ============================================================
@@ -312,6 +300,7 @@ main,
 
 .pane-actions {
   display: flex;
+  align-items: center;
   gap: var(--space-xs);
 }
 
@@ -321,7 +310,7 @@ main,
   position: relative;
 }
 
-/* Rich text input (contenteditable) */
+/* Rich text input (contenteditable) — Visual pane */
 .editor-richtext {
   flex: 1;
   width: 100%;
@@ -360,57 +349,182 @@ main,
   color: var(--color-primary);
 }
 
-/* HTML source output (textarea) */
-.editor-textarea {
+/* ============================================================
+   SOURCE EDITOR — Transparent textarea over highlighted <pre>
+   Both elements share identical font metrics via CSS vars.
+   ============================================================ */
+.source-editor-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  background: var(--color-bg);
+}
+
+.source-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--editor-font);
+  font-size: var(--editor-size);
+  line-height: var(--editor-line-height);
+  padding: var(--editor-padding);
+  tab-size: var(--editor-tab-size);
+  -moz-tab-size: var(--editor-tab-size);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  letter-spacing: normal;
+}
+
+.source-highlight code {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.source-textarea {
+  position: relative;
+  z-index: 1;
   flex: 1;
   width: 100%;
-  padding: var(--space-md);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  line-height: 1.6;
-  color: var(--color-text);
-  background: var(--color-bg);
+  margin: 0;
+  font-family: var(--editor-font);
+  font-size: var(--editor-size);
+  line-height: var(--editor-line-height);
+  padding: var(--editor-padding);
+  tab-size: var(--editor-tab-size);
+  -moz-tab-size: var(--editor-tab-size);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  color: transparent;
+  caret-color: var(--color-text);
+  background: transparent;
   border: none;
   outline: none;
   resize: none;
-  tab-size: 2;
-  -moz-tab-size: 2;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
   overflow: auto;
+  letter-spacing: normal;
 }
 
-.editor-textarea::placeholder {
+.source-textarea::placeholder {
   color: var(--color-text-muted);
 }
 
-.editor-textarea:focus {
-  background: color-mix(in srgb, var(--color-bg) 95%, var(--color-primary));
+.source-textarea:focus {
+  background: transparent;
 }
 
-.editor-textarea[readonly] {
-  cursor: default;
+/* ============================================================
+   SYNTAX HIGHLIGHTING TOKENS
+   ============================================================ */
+.hl-tag     { color: var(--hl-tag); }
+.hl-attr    { color: var(--hl-attr); }
+.hl-value   { color: var(--hl-value); }
+.hl-comment { color: var(--hl-comment); font-style: italic; }
+.hl-bracket { color: var(--hl-bracket); }
+
+/* ============================================================
+   CHARACTER COUNT
+   ============================================================ */
+.char-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
-/* Format controls — centered between panes */
+/* ============================================================
+   FORMAT CONTROLS — Action buttons centered between panes
+   ============================================================ */
 .format-controls {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: stretch;
   gap: var(--space-sm);
   padding: var(--space-sm) 0;
+  position: relative;
 }
 
-.btn-format {
-  padding: var(--space-md) var(--space-lg);
-  font-size: var(--text-base);
-  min-width: 100px;
-}
-
-.btn-minify {
+.btn-action {
   padding: var(--space-sm) var(--space-lg);
   font-size: var(--text-sm);
   min-width: 100px;
+}
+
+/* ============================================================
+   TIDY SPLIT BUTTON + DROPDOWN
+   ============================================================ */
+.tidy-button-group {
+  display: flex;
+}
+
+.btn-tidy-main {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  flex: 1;
+}
+
+.btn-dropdown-toggle {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, #fff 20%, var(--color-primary));
+  padding: var(--space-sm) var(--space-sm);
+  min-width: auto;
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+.btn-dropdown-toggle:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.tidy-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  min-width: 280px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: var(--space-md);
+}
+
+.tidy-dropdown-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.tidy-dropdown-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-sm) 0;
+}
+
+.tidy-dropdown-footer {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
 }
 
 /* ============================================================
@@ -648,24 +762,30 @@ main,
     flex-direction: row;
     justify-content: center;
     padding: var(--space-sm);
+    flex-wrap: wrap;
   }
 
   .editor-pane {
     min-height: 300px;
   }
 
-  .options-bar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .option-divider {
-    width: 100%;
-    height: 1px;
+  .formatting-bar {
+    flex-wrap: wrap;
   }
 
   .stats-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Dropdown repositions on mobile */
+  .tidy-dropdown {
+    position: fixed;
+    top: auto;
+    bottom: var(--space-md);
+    left: var(--space-md);
+    right: var(--space-md);
+    transform: none;
+    max-height: 50vh;
   }
 }
 
@@ -717,7 +837,7 @@ main,
    PRINT STYLES
    ============================================================ */
 @media print {
-  .options-section,
+  .formatting-bar,
   .format-controls,
   .pane-actions,
   .stats-section,

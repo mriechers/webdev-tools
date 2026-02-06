@@ -37,138 +37,45 @@
 
   <main>
     <!-- ============================================================
-         OPTIONS SECTION
-         Formatting and tidying options the user can configure.
+         FORMATTING BAR
+         Compact single-row bar with indent-size + wrap-length selectors.
          ============================================================ -->
-    <section class="options-section" aria-label="Formatting options">
-      <div class="options-bar">
-        <div class="option-group">
-          <label for="indent-size" class="option-label">Indent</label>
-          <select id="indent-size" class="option-select">
-            <option value="2" selected>2 spaces</option>
-            <option value="4">4 spaces</option>
-            <option value="tab">Tab</option>
-          </select>
-        </div>
-
-        <div class="option-group">
-          <label for="wrap-length" class="option-label">Wrap</label>
-          <select id="wrap-length" class="option-select">
-            <option value="0">No wrap</option>
-            <option value="80">80 cols</option>
-            <option value="120" selected>120 cols</option>
-            <option value="160">160 cols</option>
-          </select>
-        </div>
-
-        <div class="option-divider" aria-hidden="true"></div>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-sort-attrs">
-          <span>Sort attributes</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-lowercase-tags" checked>
-          <span>Lowercase tags</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-lowercase-attrs" checked>
-          <span>Lowercase attributes</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-remove-empty-attrs">
-          <span>Remove empty attributes</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-fix-self-closing" checked>
-          <span>Fix self-closing tags</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-unquoted-to-quoted" checked>
-          <span>Quote attributes</span>
-        </label>
-
-        <div class="option-divider" aria-hidden="true"></div>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-remove-styles">
-          <span>Remove inline styles</span>
-        </label>
-
-        <label class="option-checkbox">
-          <input type="checkbox" id="opt-remove-classes">
-          <span>Remove classes</span>
-        </label>
+    <section class="formatting-bar" aria-label="Formatting options">
+      <div class="option-group">
+        <label for="indent-size" class="option-label">Indent</label>
+        <select id="indent-size" class="option-select">
+          <option value="2" selected>2 spaces</option>
+          <option value="4">4 spaces</option>
+          <option value="tab">Tab</option>
+        </select>
       </div>
 
-      <!-- Advanced options — collapsed by default -->
-      <details class="advanced-config">
-        <summary>Advanced options</summary>
-        <div class="advanced-options">
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-remove-comments">
-            <span>Remove comments</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-remove-empty-tags">
-            <span>Remove empty tags</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-trim-whitespace" checked>
-            <span>Trim extra whitespace</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-newline-before-close">
-            <span>Newline before closing &gt;</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-indent-inner-html" checked>
-            <span>Indent &lt;head&gt; and &lt;body&gt; children</span>
-          </label>
-
-          <div class="option-divider" aria-hidden="true"></div>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-remove-data-attrs">
-            <span>Remove data-* attributes</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-remove-ids">
-            <span>Remove id attributes</span>
-          </label>
-
-          <label class="option-checkbox">
-            <input type="checkbox" id="opt-unwrap-spans">
-            <span>Unwrap empty &lt;span&gt; tags</span>
-          </label>
-        </div>
-      </details>
+      <div class="option-group">
+        <label for="wrap-length" class="option-label">Wrap</label>
+        <select id="wrap-length" class="option-select">
+          <option value="0">No wrap</option>
+          <option value="80">80 cols</option>
+          <option value="120" selected>120 cols</option>
+          <option value="160">160 cols</option>
+        </select>
+      </div>
     </section>
 
     <!-- ============================================================
          EDITOR SECTION
-         Two-pane editor: input on the left, output on the right.
+         Two-pane editor: visual (left), action buttons (center),
+         source with syntax highlighting (right).
          ============================================================ -->
     <section class="editor-section" aria-label="HTML editor">
       <div class="editor-panes">
-        <!-- Input pane -->
+        <!-- Visual pane (left) -->
         <div class="editor-pane">
           <div class="pane-header">
-            <span class="pane-title">Input</span>
+            <span class="pane-title">Visual</span>
             <div class="pane-actions">
               <button type="button" id="btn-paste" class="btn btn-small" title="Paste from clipboard (captures rich text as HTML)">Paste</button>
               <button type="button" id="btn-load-example" class="btn btn-small" title="Load example HTML">Example</button>
-              <button type="button" id="btn-clear-input" class="btn btn-small" title="Clear input">Clear</button>
+              <button type="button" id="btn-new-page" class="btn btn-small" title="Clear both editors and reset state">New Page</button>
             </div>
           </div>
           <div class="textarea-wrapper">
@@ -176,42 +83,136 @@
               id="input-editor"
               class="editor-richtext"
               contenteditable="true"
-              data-placeholder="Paste rich text here — formatting will be preserved. Click Format to generate clean HTML..."
+              data-placeholder="Paste rich text here — formatting will be preserved. Click Tidy to clean the HTML..."
               spellcheck="false"
               aria-label="Rich text input"
             ></div>
           </div>
         </div>
 
-        <!-- Format button (centered between panes) -->
+        <!-- Action buttons (centered between panes) -->
         <div class="format-controls">
-          <button type="button" id="btn-format" class="btn btn-primary btn-format">
-            <span class="btn-label">Format</span>
+          <button type="button" id="btn-indent" class="btn btn-secondary btn-action" title="Indent HTML (click twice for full indent)">
+            Indent
           </button>
-          <button type="button" id="btn-minify" class="btn btn-secondary btn-minify" title="Minify HTML">
-            Minify
+
+          <!-- Tidy split button -->
+          <div class="tidy-button-group">
+            <button type="button" id="btn-tidy" class="btn btn-primary btn-action btn-tidy-main" title="Apply cleaning operations (Ctrl/Cmd + Enter)">
+              Tidy
+            </button>
+            <button type="button" id="btn-tidy-toggle" class="btn btn-primary btn-dropdown-toggle" aria-expanded="false" aria-haspopup="true" aria-label="Tidy options">
+              <span aria-hidden="true">&#9662;</span>
+            </button>
+          </div>
+
+          <!-- Tidy dropdown panel -->
+          <div id="tidy-dropdown" class="tidy-dropdown" hidden>
+            <div class="tidy-dropdown-section">
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-lowercase-tags" checked>
+                <span>Lowercase tags</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-lowercase-attrs" checked>
+                <span>Lowercase attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-sort-attrs">
+                <span>Sort attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-empty-attrs">
+                <span>Remove empty attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-fix-self-closing" checked>
+                <span>Fix self-closing tags</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-unquoted-to-quoted" checked>
+                <span>Quote attributes</span>
+              </label>
+            </div>
+
+            <div class="tidy-dropdown-divider"></div>
+
+            <div class="tidy-dropdown-section">
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-comments">
+                <span>Remove comments</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-empty-tags">
+                <span>Remove empty tags</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-trim-whitespace" checked>
+                <span>Trim extra whitespace</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-newline-before-close">
+                <span>Newline before closing &gt;</span>
+              </label>
+            </div>
+
+            <div class="tidy-dropdown-divider"></div>
+
+            <div class="tidy-dropdown-section">
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-styles">
+                <span>Remove inline styles</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-classes">
+                <span>Remove classes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-ids">
+                <span>Remove id attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-remove-data-attrs">
+                <span>Remove data-* attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-unwrap-spans">
+                <span>Unwrap empty &lt;span&gt; tags</span>
+              </label>
+            </div>
+
+            <div class="tidy-dropdown-footer">
+              Settings are saved automatically.
+            </div>
+          </div>
+
+          <button type="button" id="btn-compress" class="btn btn-secondary btn-action" title="Remove all whitespace">
+            Compress
           </button>
         </div>
 
-        <!-- Output pane -->
+        <!-- Source pane (right) — editable with syntax highlighting -->
         <div class="editor-pane">
           <div class="pane-header">
-            <span class="pane-title">Output</span>
+            <span class="pane-title">Source</span>
             <div class="pane-actions">
+              <span id="char-count" class="char-count">0 chars</span>
+              <button type="button" id="btn-undo" class="btn btn-small" title="Undo last action" disabled>Undo</button>
               <button type="button" id="btn-copy" class="btn btn-small" title="Copy to clipboard">Copy</button>
               <button type="button" id="btn-download" class="btn btn-small" title="Download as .html file">Download</button>
-              <button type="button" id="btn-use-as-input" class="btn btn-small" title="Move output to input for re-formatting">&#8592; Use as input</button>
             </div>
           </div>
           <div class="textarea-wrapper">
-            <textarea
-              id="output-editor"
-              class="editor-textarea"
-              readonly
-              placeholder="Formatted HTML will appear here..."
-              spellcheck="false"
-              aria-label="Formatted HTML output"
-            ></textarea>
+            <div class="source-editor-wrapper">
+              <pre id="source-highlight" class="source-highlight" aria-hidden="true"><code></code></pre>
+              <textarea
+                id="source-editor"
+                class="source-textarea"
+                placeholder="Formatted HTML will appear here... or type directly."
+                spellcheck="false"
+                aria-label="HTML source editor"
+              ></textarea>
+            </div>
           </div>
         </div>
       </div>
@@ -225,27 +226,27 @@
       <div class="stats-grid">
         <div class="stat-card">
           <span class="stat-label">Input size</span>
-          <span class="stat-value" id="stat-input-size">—</span>
+          <span class="stat-value" id="stat-input-size">&mdash;</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Output size</span>
-          <span class="stat-value" id="stat-output-size">—</span>
+          <span class="stat-value" id="stat-output-size">&mdash;</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Difference</span>
-          <span class="stat-value" id="stat-diff">—</span>
+          <span class="stat-value" id="stat-diff">&mdash;</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Lines</span>
-          <span class="stat-value" id="stat-lines">—</span>
+          <span class="stat-value" id="stat-lines">&mdash;</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Tags found</span>
-          <span class="stat-value" id="stat-tags">—</span>
+          <span class="stat-value" id="stat-tags">&mdash;</span>
         </div>
         <div class="stat-card">
           <span class="stat-label">Issues fixed</span>
-          <span class="stat-value" id="stat-fixes">—</span>
+          <span class="stat-value" id="stat-fixes">&mdash;</span>
         </div>
       </div>
     </section>

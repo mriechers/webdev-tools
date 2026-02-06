@@ -6,9 +6,10 @@
  *
  * Architecture:
  * 1. Tokenizer: breaks raw HTML into tokens (tags, text, comments, doctype)
- * 2. Formatter: walks tokens and applies indentation + tidying rules
- * 3. Minifier: strips all unnecessary whitespace
- * 4. UI layer: wires DOM elements to the formatter
+ * 2. Indent: whitespace-only restructuring (two stages)
+ * 3. Tidy: cleaning operations without changing whitespace
+ * 4. Compress: strips all unnecessary whitespace
+ * 5. UI layer: wires DOM elements, bidirectional editors, syntax highlighting
  */
 
 // ============================================================
@@ -227,80 +228,157 @@ function findTagEnd(html, pos) {
 
 
 // ============================================================
-// HTML FORMATTER
-// Takes tokens and produces indented, tidied HTML.
+// INDENT — Whitespace-only restructuring
+// Does NOT modify attributes, tags, or content — only spacing.
+// Stage 1: block elements on new lines, inline stays on current line
+// Stage 2: ALL elements on their own indented lines
 // ============================================================
 
 /**
- * Get the current formatting options from the UI.
+ * Append text to the last line instead of starting a new one.
  */
-function getOptions() {
-  const indentSel = document.getElementById('indent-size').value;
-  return {
-    indentChar: indentSel === 'tab' ? '\t' : ' ',
-    indentSize: indentSel === 'tab' ? 1 : parseInt(indentSel, 10),
-    wrapLength: parseInt(document.getElementById('wrap-length').value, 10),
-    sortAttrs: document.getElementById('opt-sort-attrs').checked,
-    lowercaseTags: document.getElementById('opt-lowercase-tags').checked,
-    lowercaseAttrs: document.getElementById('opt-lowercase-attrs').checked,
-    removeEmptyAttrs: document.getElementById('opt-remove-empty-attrs').checked,
-    fixSelfClosing: document.getElementById('opt-fix-self-closing').checked,
-    quoteAttrs: document.getElementById('opt-unquoted-to-quoted').checked,
-    removeComments: document.getElementById('opt-remove-comments').checked,
-    removeEmptyTags: document.getElementById('opt-remove-empty-tags').checked,
-    trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
-    newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
-    indentInnerHtml: document.getElementById('opt-indent-inner-html').checked,
-    // CMS cleaning options
-    removeStyles: document.getElementById('opt-remove-styles').checked,
-    removeClasses: document.getElementById('opt-remove-classes').checked,
-    removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
-    removeIds: document.getElementById('opt-remove-ids').checked,
-    unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
-  };
+function appendToCurrentLine(lines, text) {
+  if (lines.length === 0) {
+    lines.push(text);
+  } else {
+    lines[lines.length - 1] += text;
+  }
 }
 
 /**
- * Format an attribute list into a string, respecting options.
+ * Rebuild a tag from its token, preserving original attributes exactly.
  */
-function formatAttributes(attrs, opts) {
-  let processed = attrs.map(attr => {
-    let name = opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name;
-    let value = attr.value;
-    let quote = attr.quote;
+function rebuildTag(token) {
+  const tagName = token.tagName;
+  const attrs = (token.attributes || []).map(attr => {
+    if (attr.value === null) return attr.name;
+    const q = attr.quote || '"';
+    return `${attr.name}=${q}${attr.value}${q}`;
+  }).join(' ');
+  const isVoid = VOID_ELEMENTS.has(tagName.toLowerCase());
+  const isSelfClosing = token.type === TokenType.SELF_CLOSING_TAG;
+  if (attrs) {
+    if (isSelfClosing && !isVoid) return `<${tagName} ${attrs} />`;
+    return `<${tagName} ${attrs}>`;
+  }
+  if (isSelfClosing && !isVoid) return `<${tagName} />`;
+  return `<${tagName}>`;
+}
 
-    // CMS cleaning: strip specific attribute types
-    const lowerName = name.toLowerCase();
-    if (opts.removeStyles && lowerName === 'style') return null;
-    if (opts.removeClasses && lowerName === 'class') return null;
-    if (opts.removeIds && lowerName === 'id') return null;
-    if (opts.removeDataAttrs && lowerName.startsWith('data-')) return null;
+/**
+ * Indent tokenized HTML — whitespace restructuring only.
+ * @param {string} html - Raw HTML string
+ * @param {object} opts - { indentChar, indentSize, wrapLength }
+ * @param {number} stage - 1 = block elements only, 2 = all elements
+ * @returns {string} Indented HTML
+ */
+function indent(html, opts, stage) {
+  const tokens = tokenize(html);
+  const lines = [];
+  let indentLevel = 0;
+  const indentStr = () => opts.indentChar.repeat(opts.indentSize * indentLevel);
 
-    // Remove empty attributes if option is set
-    if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(name)) {
-      return null;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    const lowerName = token.tagName ? token.tagName.toLowerCase() : '';
+    const isInline = INLINE_ELEMENTS.has(lowerName);
+
+    switch (token.type) {
+      case TokenType.DOCTYPE: {
+        lines.push(indentStr() + token.raw.trim());
+        break;
+      }
+
+      case TokenType.COMMENT: {
+        if (stage === 1 || stage === 2) {
+          lines.push(indentStr() + token.raw.trim());
+        } else {
+          appendToCurrentLine(lines, token.raw);
+        }
+        break;
+      }
+
+      case TokenType.CDATA: {
+        lines.push(indentStr() + token.raw);
+        break;
+      }
+
+      case TokenType.OPEN_TAG: {
+        const tagStr = rebuildTag(token);
+
+        if (stage === 1 && isInline) {
+          // Stage 1: inline elements stay on current line
+          appendToCurrentLine(lines, tagStr);
+        } else {
+          // Stage 1 block elements, or Stage 2 all elements: own line
+          lines.push(indentStr() + tagStr);
+        }
+
+        if (!RAW_TEXT_ELEMENTS.has(lowerName)) {
+          indentLevel++;
+        }
+        break;
+      }
+
+      case TokenType.CLOSE_TAG: {
+        const isVoid = VOID_ELEMENTS.has(lowerName);
+        if (isVoid) break;
+
+        if (!RAW_TEXT_ELEMENTS.has(lowerName)) {
+          indentLevel = Math.max(0, indentLevel - 1);
+        }
+
+        const closeStr = `</${token.tagName}>`;
+
+        if (stage === 1 && isInline) {
+          appendToCurrentLine(lines, closeStr);
+        } else {
+          lines.push(indentStr() + closeStr);
+        }
+        break;
+      }
+
+      case TokenType.SELF_CLOSING_TAG: {
+        const tagStr = rebuildTag(token);
+
+        if (stage === 1 && isInline) {
+          appendToCurrentLine(lines, tagStr);
+        } else {
+          lines.push(indentStr() + tagStr);
+        }
+        break;
+      }
+
+      case TokenType.TEXT: {
+        if (token.preserveWhitespace) {
+          lines.push(token.content);
+          break;
+        }
+
+        // Strip leading/trailing whitespace to prevent compounding
+        const text = token.content.replace(/\s+/g, ' ').trim();
+        if (!text) break;
+
+        if (stage === 1) {
+          // In stage 1, text flows inline
+          appendToCurrentLine(lines, text);
+        } else {
+          // In stage 2, text gets its own indented line
+          lines.push(indentStr() + text);
+        }
+        break;
+      }
     }
-
-    // Quote unquoted attribute values
-    if (opts.quoteAttrs && value !== null && quote !== '"' && quote !== "'") {
-      quote = '"';
-    }
-
-    if (value === null) {
-      // Boolean attribute
-      return name;
-    }
-
-    const quoteChar = quote || '"';
-    return `${name}=${quoteChar}${value}${quoteChar}`;
-  }).filter(Boolean);
-
-  if (opts.sortAttrs) {
-    processed.sort();
   }
 
-  return processed;
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
+
+
+// ============================================================
+// TIDY — Cleaning operations without changing whitespace structure
+// Tag casing, attribute manipulation, empty tag removal, etc.
+// ============================================================
 
 /**
  * Common boolean HTML attributes that can stand alone without a value.
@@ -317,65 +395,70 @@ function isBooleanAttr(name) {
 }
 
 /**
- * Build a single tag string from components.
+ * Build a tidied tag string, applying cleaning options to attributes.
  */
-function buildTag(tagName, attrs, selfClose, opts) {
+function buildTidyTag(tagName, attrs, selfClose, opts) {
   const name = opts.lowercaseTags ? tagName.toLowerCase() : tagName;
-  const attrParts = formatAttributes(attrs, opts);
 
-  // Decide if we need to wrap attributes across multiple lines
-  const singleLine = attrParts.length === 0
-    ? (selfClose ? `<${name} />` : `<${name}>`)
-    : (selfClose ? `<${name} ${attrParts.join(' ')} />` : `<${name} ${attrParts.join(' ')}>`);
+  let processed = attrs.map(attr => {
+    let attrName = opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name;
+    let value = attr.value;
+    let quote = attr.quote;
 
-  if (opts.wrapLength > 0 && singleLine.length > opts.wrapLength && attrParts.length > 1) {
-    const indent = opts.indentChar.repeat(opts.indentSize);
-    const attrIndent = indent + (opts.indentChar === '\t' ? '\t' : ' '.repeat(opts.indentSize));
-    const attrStr = attrParts.map(a => `${attrIndent}${a}`).join('\n');
-    if (opts.newlineBeforeClose) {
-      return selfClose
-        ? `<${name}\n${attrStr}\n/>`
-        : `<${name}\n${attrStr}\n>`;
+    const lowerAttrName = attrName.toLowerCase();
+    if (opts.removeStyles && lowerAttrName === 'style') return null;
+    if (opts.removeClasses && lowerAttrName === 'class') return null;
+    if (opts.removeIds && lowerAttrName === 'id') return null;
+    if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
+    if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
+
+    if (opts.quoteAttrs && value !== null && quote !== '"' && quote !== "'") {
+      quote = '"';
     }
-    return selfClose
-      ? `<${name}\n${attrStr} />`
-      : `<${name}\n${attrStr}>`;
-  }
 
-  // For void elements with fixSelfClosing, ensure proper format
-  if (selfClose && opts.fixSelfClosing && VOID_ELEMENTS.has(tagName.toLowerCase())) {
-    const attrStr = attrParts.length > 0 ? ' ' + attrParts.join(' ') : '';
+    if (value === null) return attrName;
+
+    const quoteChar = quote || '"';
+    return `${attrName}=${quoteChar}${value}${quoteChar}`;
+  }).filter(Boolean);
+
+  if (opts.sortAttrs) processed.sort();
+
+  const attrStr = processed.length > 0 ? ' ' + processed.join(' ') : '';
+  const isVoid = VOID_ELEMENTS.has(tagName.toLowerCase());
+
+  if (selfClose && opts.fixSelfClosing && isVoid) {
     return `<${name}${attrStr}>`;
   }
 
-  return singleLine;
+  if (selfClose) {
+    return `<${name}${attrStr} />`;
+  }
+
+  return `<${name}${attrStr}>`;
 }
 
 /**
- * Format tokenized HTML into a beautified string.
+ * Tidy tokenized HTML — applies cleaning without changing whitespace.
  * Returns { output, fixCount, tagCount }.
  */
-function format(tokens, opts) {
-  const lines = [];
-  let indentLevel = 0;
+function tidy(html, opts) {
+  const tokens = tokenize(html);
+  const parts = [];
   let fixCount = 0;
   let tagCount = 0;
-  let unwrappedSpanDepth = 0; // tracks spans being unwrapped
-  const indent = () => opts.indentChar.repeat(opts.indentSize * indentLevel);
-
-  // Track which structural elements affect indentation
-  const noIndentElements = opts.indentInnerHtml ? [] : ['html', 'head', 'body'];
+  let unwrappedSpanDepth = 0;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
 
     switch (token.type) {
       case TokenType.DOCTYPE: {
-        let doctype = token.raw.trim();
+        let doctype = token.raw;
         if (opts.lowercaseTags) {
           doctype = doctype.replace(/<!DOCTYPE/i, '<!DOCTYPE');
         }
-        lines.push(indent() + doctype);
+        parts.push(doctype);
         break;
       }
 
@@ -384,25 +467,12 @@ function format(tokens, opts) {
           fixCount++;
           break;
         }
-        const commentContent = token.content;
-        // Multiline comments: preserve internal structure
-        if (commentContent.includes('\n')) {
-          const commentLines = token.raw.split('\n');
-          commentLines.forEach((line, idx) => {
-            if (idx === 0) {
-              lines.push(indent() + line.trim());
-            } else {
-              lines.push(indent() + '  ' + line.trim());
-            }
-          });
-        } else {
-          lines.push(indent() + `<!--${commentContent}-->`);
-        }
+        parts.push(token.raw);
         break;
       }
 
       case TokenType.CDATA: {
-        lines.push(indent() + token.raw);
+        parts.push(token.raw);
         break;
       }
 
@@ -410,7 +480,7 @@ function format(tokens, opts) {
         const lowerName = token.tagName.toLowerCase();
         tagCount++;
 
-        // Check for empty tags that should be removed
+        // Remove empty tags
         if (opts.removeEmptyTags) {
           const nextToken = tokens[i + 1];
           if (nextToken && nextToken.type === TokenType.CLOSE_TAG &&
@@ -418,29 +488,30 @@ function format(tokens, opts) {
               !VOID_ELEMENTS.has(lowerName) &&
               !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName)) {
             fixCount++;
-            i++; // Skip the close tag too
+            i++;
             break;
           }
         }
 
-        // Unwrap spans: if the span has no meaningful attributes left after
-        // cleaning, skip the opening tag (and mark for closing tag skip)
+        // Unwrap empty spans
         if (opts.unwrapSpans && lowerName === 'span') {
-          const remainingAttrs = formatAttributes(token.attributes || [], opts);
+          const remainingAttrs = (token.attributes || []).filter(attr => {
+            const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
+            if (opts.removeStyles && an === 'style') return false;
+            if (opts.removeClasses && an === 'class') return false;
+            if (opts.removeIds && an === 'id') return false;
+            if (opts.removeDataAttrs && an.startsWith('data-')) return false;
+            if (opts.removeEmptyAttrs && attr.value === '' && !isBooleanAttr(an)) return false;
+            return true;
+          });
           if (remainingAttrs.length === 0) {
             fixCount++;
             unwrappedSpanDepth++;
-            break; // Skip the <span> tag, its content will flow through
+            break;
           }
         }
 
-        const tagStr = buildTag(token.tagName, token.attributes || [], false, opts);
-        lines.push(indent() + tagStr);
-
-        if (!noIndentElements.includes(lowerName)) {
-          indentLevel++;
-        }
-
+        parts.push(buildTidyTag(token.tagName, token.attributes || [], false, opts));
         break;
       }
 
@@ -448,61 +519,59 @@ function format(tokens, opts) {
         const lowerName = token.tagName.toLowerCase();
         const closeTagName = opts.lowercaseTags ? lowerName : token.tagName;
 
-        // Void elements shouldn't have closing tags
         if (VOID_ELEMENTS.has(lowerName)) {
           fixCount++;
           break;
         }
 
-        // Skip closing tags for unwrapped spans
         if (lowerName === 'span' && unwrappedSpanDepth > 0) {
           unwrappedSpanDepth--;
           break;
         }
 
-        if (!noIndentElements.includes(lowerName)) {
-          indentLevel = Math.max(0, indentLevel - 1);
-        }
-
-        lines.push(indent() + `</${closeTagName}>`);
+        parts.push(`</${closeTagName}>`);
         break;
       }
 
       case TokenType.SELF_CLOSING_TAG: {
         tagCount++;
-        const tagStr = buildTag(token.tagName, token.attributes || [], true, opts);
-        lines.push(indent() + tagStr);
+        parts.push(buildTidyTag(token.tagName, token.attributes || [], true, opts));
         break;
       }
 
       case TokenType.TEXT: {
         if (token.preserveWhitespace) {
-          // Raw text (inside <script>, <style>, <pre>, etc.) — preserve as-is
-          lines.push(token.content);
+          parts.push(token.content);
           break;
         }
 
-        const text = opts.trimWhitespace ? token.content.replace(/\s+/g, ' ').trim() : token.content;
-        if (!text) break;
-
-        // For inline text that's just whitespace between tags, skip it
-        if (opts.trimWhitespace && !text.trim()) break;
-
-        lines.push(indent() + text);
+        let text = token.content;
+        if (opts.trimWhitespace) {
+          text = text.replace(/\s+/g, ' ');
+          // Only fully trim if the result is all whitespace
+          if (!text.trim()) {
+            // Preserve a single space between inline elements
+            parts.push(' ');
+            break;
+          }
+        }
+        parts.push(text);
         break;
       }
     }
   }
 
-  // Clean up: remove consecutive blank lines
-  const output = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  // Join with empty string — preserves original whitespace between tokens
+  const output = parts.join('');
   return { output, fixCount, tagCount };
 }
 
-/**
- * Minify HTML — strip all unnecessary whitespace.
- */
-function minify(html) {
+
+// ============================================================
+// COMPRESS — Strip all unnecessary whitespace (formerly minify)
+// ============================================================
+
+function compress(html) {
   const tokens = tokenize(html);
   const parts = [];
 
@@ -514,7 +583,7 @@ function minify(html) {
         parts.push(token.raw.replace(/\s+/g, ' ').trim());
         break;
       case TokenType.COMMENT:
-        // Strip comments in minified output
+        // Strip comments in compressed output
         break;
       case TokenType.CDATA:
         parts.push(token.raw);
@@ -525,9 +594,8 @@ function minify(html) {
         const attrs = (token.attributes || [])
           .map(a => a.value === null ? a.name : `${a.name}="${a.value}"`)
           .join(' ');
-        const isVoid = VOID_ELEMENTS.has(name);
         if (attrs) {
-          parts.push(isVoid ? `<${name} ${attrs}>` : `<${name} ${attrs}>`);
+          parts.push(`<${name} ${attrs}>`);
         } else {
           parts.push(`<${name}>`);
         }
@@ -552,6 +620,125 @@ function minify(html) {
   return parts.join('');
 }
 
+// Keep backward compat alias
+const minify = compress;
+
+
+// ============================================================
+// OPTIONS — Separated into indent and tidy option readers
+// ============================================================
+
+function getIndentOptions() {
+  const indentSel = document.getElementById('indent-size').value;
+  return {
+    indentChar: indentSel === 'tab' ? '\t' : ' ',
+    indentSize: indentSel === 'tab' ? 1 : parseInt(indentSel, 10),
+    wrapLength: parseInt(document.getElementById('wrap-length').value, 10),
+  };
+}
+
+function getTidyOptions() {
+  return {
+    sortAttrs: document.getElementById('opt-sort-attrs').checked,
+    lowercaseTags: document.getElementById('opt-lowercase-tags').checked,
+    lowercaseAttrs: document.getElementById('opt-lowercase-attrs').checked,
+    removeEmptyAttrs: document.getElementById('opt-remove-empty-attrs').checked,
+    fixSelfClosing: document.getElementById('opt-fix-self-closing').checked,
+    quoteAttrs: document.getElementById('opt-unquoted-to-quoted').checked,
+    removeComments: document.getElementById('opt-remove-comments').checked,
+    removeEmptyTags: document.getElementById('opt-remove-empty-tags').checked,
+    trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
+    newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
+    removeStyles: document.getElementById('opt-remove-styles').checked,
+    removeClasses: document.getElementById('opt-remove-classes').checked,
+    removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
+    removeIds: document.getElementById('opt-remove-ids').checked,
+    unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
+  };
+}
+
+
+// ============================================================
+// LOCALSTORAGE PERSISTENCE — Tidy options
+// ============================================================
+
+const TIDY_OPTIONS_KEY = 'htmlTidy_options';
+
+const TIDY_CHECKBOX_IDS = [
+  'opt-sort-attrs', 'opt-lowercase-tags', 'opt-lowercase-attrs',
+  'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
+  'opt-remove-comments', 'opt-remove-empty-tags', 'opt-trim-whitespace',
+  'opt-newline-before-close', 'opt-remove-styles', 'opt-remove-classes',
+  'opt-remove-data-attrs', 'opt-remove-ids', 'opt-unwrap-spans',
+];
+
+function saveTidyOptions() {
+  try {
+    const state = {};
+    for (const id of TIDY_CHECKBOX_IDS) {
+      const el = document.getElementById(id);
+      if (el) state[id] = el.checked;
+    }
+    localStorage.setItem(TIDY_OPTIONS_KEY, JSON.stringify(state));
+  } catch {
+    // Private browsing or storage full — silently ignore
+  }
+}
+
+function loadTidyOptions() {
+  try {
+    const raw = localStorage.getItem(TIDY_OPTIONS_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    for (const id of TIDY_CHECKBOX_IDS) {
+      if (id in state) {
+        const el = document.getElementById(id);
+        if (el) el.checked = state[id];
+      }
+    }
+  } catch {
+    // Corrupted or unavailable — use defaults
+  }
+}
+
+
+// ============================================================
+// SYNTAX HIGHLIGHTING — regex-based HTML highlighter
+// ============================================================
+
+function highlightHTML(code) {
+  // Escape HTML entities first
+  let escaped = code
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  // Comments: <!-- ... -->
+  escaped = escaped.replace(
+    /(&lt;!--)([\s\S]*?)(--&gt;)/g,
+    '<span class="hl-comment">$1$2$3</span>'
+  );
+
+  // Tags: match < tagname attrs > and </tagname>
+  escaped = escaped.replace(
+    /(&lt;\/?)([\w-]+)((?:\s+[\s\S]*?)?)(\/?&gt;)/g,
+    function(match, open, tag, attrs, close) {
+      // Highlight attribute names and values within the attrs portion
+      var highlightedAttrs = attrs.replace(
+        /([\w-]+)(=)(&quot;|&#39;|"')(.*?)(\3)/g,
+        '<span class="hl-attr">$1</span>$2<span class="hl-value">$4</span>'
+      ).replace(
+        /([\w-]+)(=)([^\s&]+)/g,
+        '<span class="hl-attr">$1</span>$2<span class="hl-value">$3</span>'
+      );
+
+      return '<span class="hl-bracket">' + open + '</span><span class="hl-tag">' + tag + '</span>' + highlightedAttrs + '<span class="hl-bracket">' + close + '</span>';
+    }
+  );
+
+  return escaped;
+}
+
 
 // ============================================================
 // UI LAYER
@@ -560,30 +747,13 @@ function minify(html) {
 
 /**
  * Rich text example — rendered visually in the contenteditable input.
- * Simulates what you'd get pasting from a word processor or CMS.
  */
-const EXAMPLE_RICH_HTML = `<h1 style="font-size:24px;color:#333" CLASS="title">Welcome to My Website</h1>
-<p style="margin-bottom:12px">This is a <strong>sample page</strong> with <em>mixed formatting</em>,
-<span style="color:red;font-weight:bold" class="highlight">inline styles</span>, and various issues that need cleaning.</p>
-<h2>Features</h2>
-<ul>
-  <li>Fast loading</li>
-  <li>Responsive design</li>
-  <li>Accessible markup</li>
-</ul>
-<p>Visit <a HREF="https://example.com" TARGET="_blank" REL="noopener" style="color:blue">our website</a> for more information.</p>
-<p data-source="cms" class="body-text" id="intro">This paragraph has <span style="font-weight:bold"><span class="">unnecessary wrapper spans</span></span> and extra attributes that should be cleaned up.</p>
-<div></div>
-<!-- TODO: add sidebar -->`;
+const EXAMPLE_RICH_HTML = '<h1 style="font-size:24px;color:#333" CLASS="title">Welcome to My Website</h1>\n<p style="margin-bottom:12px">This is a <strong>sample page</strong> with <em>mixed formatting</em>,\n<span style="color:red;font-weight:bold" class="highlight">inline styles</span>, and various issues that need cleaning.</p>\n<h2>Features</h2>\n<ul>\n  <li>Fast loading</li>\n  <li>Responsive design</li>\n  <li>Accessible markup</li>\n</ul>\n<p>Visit <a HREF="https://example.com" TARGET="_blank" REL="noopener" style="color:blue">our website</a> for more information.</p>\n<p data-source="cms" class="body-text" id="intro">This paragraph has <span style="font-weight:bold"><span class="">unnecessary wrapper spans</span></span> and extra attributes that should be cleaned up.</p>\n<div></div>\n<!-- TODO: add sidebar -->';
 
 /**
  * Get the HTML content from the contenteditable input.
- * Returns trimmed innerHTML.
  */
 function getInputHTML(el) {
-  // innerHTML is used intentionally — this is a rich text editing tool
-  // where rendering user-pasted HTML is the core functionality.
-  // All processing is client-side; nothing is sent to a server.
   return el.innerHTML.trim();
 }
 
@@ -611,114 +781,304 @@ function cleanClipboardHTML(html) {
 
 function init() {
   const inputEditor = document.getElementById('input-editor');
-  const outputEditor = document.getElementById('output-editor');
-  const btnFormat = document.getElementById('btn-format');
-  const btnMinify = document.getElementById('btn-minify');
+  const sourceEditor = document.getElementById('source-editor');
+  const sourceHighlight = document.getElementById('source-highlight');
+  const btnIndent = document.getElementById('btn-indent');
+  const btnTidy = document.getElementById('btn-tidy');
+  const btnCompress = document.getElementById('btn-compress');
   const btnPaste = document.getElementById('btn-paste');
   const btnLoadExample = document.getElementById('btn-load-example');
-  const btnClearInput = document.getElementById('btn-clear-input');
+  const btnNewPage = document.getElementById('btn-new-page');
   const btnCopy = document.getElementById('btn-copy');
   const btnDownload = document.getElementById('btn-download');
-  const btnUseAsInput = document.getElementById('btn-use-as-input');
-  const btnTogglePreview = document.getElementById('btn-toggle-preview');
-  const errorSection = document.getElementById('error-section');
+  const btnUndo = document.getElementById('btn-undo');
+  const btnTidyToggle = document.getElementById('btn-tidy-toggle');
+  const tidyDropdown = document.getElementById('tidy-dropdown');
+  const charCount = document.getElementById('char-count');
   const errorDismiss = document.getElementById('error-dismiss');
 
-  // Format button — extract HTML from the rich text input and clean it
-  btnFormat.addEventListener('click', () => {
-    const html = getInputHTML(inputEditor);
-    if (!html) {
-      showError('No input', 'Paste some rich text or HTML into the input pane first.');
-      return;
+  // ---- State ----
+  var currentIndentStage = 0;
+  var undoStack = [];
+  var MAX_UNDO = 50;
+  var isUpdating = false;
+
+  // ---- Load persisted options ----
+  loadTidyOptions();
+
+  // ---- Helper: push to undo stack ----
+  function pushUndo() {
+    var value = sourceEditor.value;
+    undoStack.push(value);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    if (btnUndo) btnUndo.disabled = false;
+  }
+
+  // ---- Helper: reset indent stage ----
+  function resetIndentStage() {
+    currentIndentStage = 0;
+  }
+
+  // ---- Helper: update source highlight + char count ----
+  function updateHighlight() {
+    if (sourceHighlight) {
+      var code = sourceHighlight.querySelector('code');
+      if (code) {
+        requestAnimationFrame(function() {
+          code.innerHTML = highlightHTML(sourceEditor.value); // eslint-disable-line no-unsanitized/property
+        });
+      }
     }
-    hideError();
-    try {
-      const opts = getOptions();
-      const tokens = tokenize(html);
-      const result = format(tokens, opts);
-      outputEditor.value = result.output;
-      updateStats(html, result.output, result.tagCount, result.fixCount);
-      updatePreview(result.output);
-    } catch (e) {
-      showError('Formatting error', e.message);
+    if (charCount) {
+      var len = sourceEditor.value.length;
+      charCount.textContent = len.toLocaleString() + ' chars';
+    }
+  }
+
+  // ---- Helper: sync visual -> source ----
+  function syncVisualToSource() {
+    if (isUpdating) return;
+    isUpdating = true;
+    var html = getInputHTML(inputEditor);
+    sourceEditor.value = html;
+    updateHighlight();
+    resetIndentStage();
+    isUpdating = false;
+  }
+
+  // ---- Helper: sync source -> visual ----
+  function syncSourceToVisual() {
+    if (isUpdating) return;
+    isUpdating = true;
+    setInputHTML(inputEditor, sourceEditor.value);
+    updateHighlight();
+    resetIndentStage();
+    isUpdating = false;
+  }
+
+  // ---- Helper: update both editors from a result ----
+  function updateEditors(html) {
+    isUpdating = true;
+    sourceEditor.value = html;
+    setInputHTML(inputEditor, html);
+    updateHighlight();
+    isUpdating = false;
+  }
+
+  // ---- Bidirectional editor linking ----
+  var visualDebounce = null;
+  var sourceDebounce = null;
+
+  inputEditor.addEventListener('input', function() {
+    clearTimeout(visualDebounce);
+    visualDebounce = setTimeout(function() {
+      if (document.activeElement === inputEditor) {
+        syncVisualToSource();
+      }
+    }, 300);
+  });
+
+  sourceEditor.addEventListener('input', function() {
+    clearTimeout(sourceDebounce);
+    sourceDebounce = setTimeout(function() {
+      if (document.activeElement === sourceEditor) {
+        syncSourceToVisual();
+      }
+    }, 300);
+    // Always update highlighting immediately
+    updateHighlight();
+    resetIndentStage();
+  });
+
+  // ---- Scroll sync: textarea -> pre ----
+  sourceEditor.addEventListener('scroll', function() {
+    if (sourceHighlight) {
+      sourceHighlight.scrollTop = sourceEditor.scrollTop;
+      sourceHighlight.scrollLeft = sourceEditor.scrollLeft;
     }
   });
 
-  // Minify button
-  btnMinify.addEventListener('click', () => {
-    const html = getInputHTML(inputEditor);
+  // ---- Indent button ----
+  btnIndent.addEventListener('click', function() {
+    var html = sourceEditor.value || getInputHTML(inputEditor);
     if (!html) {
-      showError('No input', 'Paste some rich text or HTML into the input pane first.');
+      showError('No input', 'Paste some rich text or HTML into either editor first.');
       return;
     }
     hideError();
     try {
-      const result = minify(html);
-      outputEditor.value = result;
-      const tokens = tokenize(html);
-      const tagCount = tokens.filter(t =>
-        t.type === TokenType.OPEN_TAG || t.type === TokenType.SELF_CLOSING_TAG
-      ).length;
+      pushUndo();
+      var opts = getIndentOptions();
+
+      if (currentIndentStage === 0 || currentIndentStage === 2) {
+        currentIndentStage = 1;
+      } else {
+        currentIndentStage = 2;
+      }
+
+      var result = indent(html, opts, currentIndentStage);
+      updateEditors(result);
+
+      var tokens = tokenize(html);
+      var tagCount = tokens.filter(function(t) {
+        return t.type === TokenType.OPEN_TAG || t.type === TokenType.SELF_CLOSING_TAG;
+      }).length;
       updateStats(html, result, tagCount, 0);
       updatePreview(result);
     } catch (e) {
-      showError('Minification error', e.message);
+      showError('Indent error', e.message);
     }
   });
 
-  // Paste button — reads HTML from clipboard and inserts as rich text
-  btnPaste.addEventListener('click', async () => {
+  // ---- Tidy button ----
+  btnTidy.addEventListener('click', function() {
+    var html = sourceEditor.value || getInputHTML(inputEditor);
+    if (!html) {
+      showError('No input', 'Paste some rich text or HTML into either editor first.');
+      return;
+    }
+    hideError();
+    try {
+      pushUndo();
+      var opts = getTidyOptions();
+      var result = tidy(html, opts);
+      updateEditors(result.output);
+      resetIndentStage();
+      updateStats(html, result.output, result.tagCount, result.fixCount);
+      updatePreview(result.output);
+    } catch (e) {
+      showError('Tidy error', e.message);
+    }
+  });
+
+  // ---- Compress button ----
+  btnCompress.addEventListener('click', function() {
+    var html = sourceEditor.value || getInputHTML(inputEditor);
+    if (!html) {
+      showError('No input', 'Paste some rich text or HTML into either editor first.');
+      return;
+    }
+    hideError();
+    try {
+      pushUndo();
+      var result = compress(html);
+      updateEditors(result);
+      resetIndentStage();
+
+      var tokens = tokenize(html);
+      var tagCount = tokens.filter(function(t) {
+        return t.type === TokenType.OPEN_TAG || t.type === TokenType.SELF_CLOSING_TAG;
+      }).length;
+      updateStats(html, result, tagCount, 0);
+      updatePreview(result);
+    } catch (e) {
+      showError('Compress error', e.message);
+    }
+  });
+
+  // ---- Tidy dropdown toggle ----
+  if (btnTidyToggle && tidyDropdown) {
+    btnTidyToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isHidden = tidyDropdown.hidden;
+      tidyDropdown.hidden = !isHidden;
+      btnTidyToggle.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    // Close on click outside
+    document.addEventListener('click', function(e) {
+      if (!tidyDropdown.hidden && !tidyDropdown.contains(e.target) && e.target !== btnTidyToggle) {
+        tidyDropdown.hidden = true;
+        btnTidyToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !tidyDropdown.hidden) {
+        tidyDropdown.hidden = true;
+        btnTidyToggle.setAttribute('aria-expanded', 'false');
+        btnTidyToggle.focus();
+      }
+    });
+
+    // Save options on checkbox change within dropdown
+    tidyDropdown.addEventListener('change', function() {
+      saveTidyOptions();
+    });
+  }
+
+  // ---- Undo button ----
+  if (btnUndo) {
+    btnUndo.disabled = true;
+    btnUndo.addEventListener('click', function() {
+      if (undoStack.length === 0) return;
+      var prev = undoStack.pop();
+      updateEditors(prev);
+      btnUndo.disabled = undoStack.length === 0;
+    });
+  }
+
+  // ---- Paste button ----
+  btnPaste.addEventListener('click', async function() {
     try {
       if (navigator.clipboard && navigator.clipboard.read) {
-        const items = await navigator.clipboard.read();
-        for (const item of items) {
+        var items = await navigator.clipboard.read();
+        for (var ci = 0; ci < items.length; ci++) {
+          var item = items[ci];
           if (item.types.includes('text/html')) {
-            const blob = await item.getType('text/html');
-            const html = await blob.text();
+            var blob = await item.getType('text/html');
+            var html = await blob.text();
             setInputHTML(inputEditor, cleanClipboardHTML(html));
+            syncVisualToSource();
             inputEditor.focus();
             return;
           }
         }
       }
-      // Fall back to plain text
-      const text = await navigator.clipboard.readText();
+      var text = await navigator.clipboard.readText();
       inputEditor.textContent = text;
+      syncVisualToSource();
       inputEditor.focus();
-    } catch {
+    } catch (_) {
       inputEditor.focus();
     }
   });
 
-  // Load example — show rendered rich text
-  btnLoadExample.addEventListener('click', () => {
+  // ---- Load example ----
+  btnLoadExample.addEventListener('click', function() {
     setInputHTML(inputEditor, EXAMPLE_RICH_HTML);
+    syncVisualToSource();
     inputEditor.focus();
   });
 
-  // Clear input
-  btnClearInput.addEventListener('click', () => {
+  // ---- New Page (clear all) ----
+  btnNewPage.addEventListener('click', function() {
     setInputHTML(inputEditor, '');
-    outputEditor.value = '';
+    sourceEditor.value = '';
+    updateHighlight();
+    resetIndentStage();
+    undoStack.length = 0;
+    if (btnUndo) btnUndo.disabled = true;
     document.getElementById('stats-section').hidden = true;
     document.getElementById('preview-section').hidden = true;
     inputEditor.focus();
   });
 
-  // Copy output
-  btnCopy.addEventListener('click', () => {
-    const text = outputEditor.value;
+  // ---- Copy source ----
+  btnCopy.addEventListener('click', function() {
+    var text = sourceEditor.value;
     if (!text) return;
     copyToClipboard(text, btnCopy);
   });
 
-  // Download output
-  btnDownload.addEventListener('click', () => {
-    const text = outputEditor.value;
+  // ---- Download source ----
+  btnDownload.addEventListener('click', function() {
+    var text = sourceEditor.value;
     if (!text) return;
-    const blob = new Blob([text], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    var blob = new Blob([text], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
     a.href = url;
     a.download = 'formatted.html';
     document.body.appendChild(a);
@@ -727,51 +1087,43 @@ function init() {
     URL.revokeObjectURL(url);
   });
 
-  // Use output as input — renders the cleaned HTML back as rich text
-  btnUseAsInput.addEventListener('click', () => {
-    const text = outputEditor.value;
-    if (!text) return;
-    setInputHTML(inputEditor, text);
-    outputEditor.value = '';
-    document.getElementById('stats-section').hidden = true;
-    inputEditor.focus();
-  });
-
-  // Toggle preview
-  btnTogglePreview.addEventListener('click', () => {
-    const frame = document.querySelector('.preview-frame-wrapper');
-    const isHidden = frame.style.display === 'none';
+  // ---- Toggle preview ----
+  var btnTogglePreview = document.getElementById('btn-toggle-preview');
+  btnTogglePreview.addEventListener('click', function() {
+    var frame = document.querySelector('.preview-frame-wrapper');
+    var isHidden = frame.style.display === 'none';
     frame.style.display = isHidden ? '' : 'none';
     btnTogglePreview.textContent = isHidden ? 'Hide preview' : 'Show preview';
   });
 
-  // Dismiss error
+  // ---- Dismiss error ----
   errorDismiss.addEventListener('click', hideError);
 
   // ---- Rich text paste handler ----
-  // Intercept paste to strip clipboard boilerplate (StartFragment markers,
-  // <html><body> wrappers) while preserving the rich text formatting.
-  inputEditor.addEventListener('paste', (e) => {
-    const clipboardData = e.clipboardData || window.clipboardData;
+  inputEditor.addEventListener('paste', function(e) {
+    var clipboardData = e.clipboardData || window.clipboardData;
     if (!clipboardData) return;
 
-    const html = clipboardData.getData('text/html');
+    var html = clipboardData.getData('text/html');
     if (html && html.trim()) {
       e.preventDefault();
-      const cleaned = cleanClipboardHTML(html);
-      // Insert cleaned HTML at the current cursor position
+      var cleaned = cleanClipboardHTML(html);
       document.execCommand('insertHTML', false, cleaned);
+      // Sync after paste
+      setTimeout(syncVisualToSource, 50);
     }
-    // If no HTML data, let the default plain-text paste happen
   });
 
-  // Keyboard shortcut: Ctrl/Cmd + Enter to format
-  inputEditor.addEventListener('keydown', (e) => {
+  // ---- Keyboard shortcut: Ctrl/Cmd + Enter -> Tidy (primary action) ----
+  document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
-      btnFormat.click();
+      btnTidy.click();
     }
   });
+
+  // ---- Initial highlight ----
+  updateHighlight();
 }
 
 // ============================================================
@@ -795,16 +1147,16 @@ function formatBytes(bytes) {
 }
 
 function updateStats(input, output, tagCount, fixCount) {
-  const inputSize = new Blob([input]).size;
-  const outputSize = new Blob([output]).size;
-  const diff = outputSize - inputSize;
-  const lines = output.split('\n').length;
+  var inputSize = new Blob([input]).size;
+  var outputSize = new Blob([output]).size;
+  var diff = outputSize - inputSize;
+  var lines = output.split('\n').length;
 
   document.getElementById('stat-input-size').textContent = formatBytes(inputSize);
   document.getElementById('stat-output-size').textContent = formatBytes(outputSize);
 
-  const diffEl = document.getElementById('stat-diff');
-  const diffSign = diff > 0 ? '+' : '';
+  var diffEl = document.getElementById('stat-diff');
+  var diffSign = diff > 0 ? '+' : '';
   diffEl.textContent = diffSign + formatBytes(Math.abs(diff));
   diffEl.className = 'stat-value' + (diff > 0 ? ' positive' : diff < 0 ? ' negative' : '');
 
@@ -812,46 +1164,43 @@ function updateStats(input, output, tagCount, fixCount) {
   document.getElementById('stat-tags').textContent = tagCount;
   document.getElementById('stat-fixes').textContent = fixCount;
 
-  // Animate stat cards
-  const cards = document.querySelectorAll('.stat-card');
-  cards.forEach((card, i) => card.style.setProperty('--card-index', i));
+  var cards = document.querySelectorAll('.stat-card');
+  cards.forEach(function(card, i) { card.style.setProperty('--card-index', i); });
 
   document.getElementById('stats-section').hidden = false;
 }
 
 function updatePreview(html) {
-  const previewSection = document.getElementById('preview-section');
-  const frame = document.getElementById('preview-frame');
+  var previewSection = document.getElementById('preview-section');
+  var frame = document.getElementById('preview-frame');
   previewSection.hidden = false;
 
-  // Write to sandboxed iframe
-  const doc = frame.contentDocument || frame.contentWindow.document;
+  var doc = frame.contentDocument || frame.contentWindow.document;
   doc.open();
   doc.write(html);
   doc.close();
 }
 
 async function copyToClipboard(text, button) {
-  const originalText = button.textContent;
+  var originalText = button.textContent;
   try {
     await navigator.clipboard.writeText(text);
     button.textContent = 'Copied!';
     button.classList.add('btn-success-flash');
-  } catch {
-    // Fallback
-    const textarea = document.createElement('textarea');
+  } catch (_) {
+    var textarea = document.createElement('textarea');
     textarea.value = text;
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
     document.body.appendChild(textarea);
     textarea.select();
-    let success = false;
-    try { success = document.execCommand('copy'); } catch {}
+    var success = false;
+    try { success = document.execCommand('copy'); } catch (_e) { /* noop */ }
     document.body.removeChild(textarea);
     button.textContent = success ? 'Copied!' : 'Failed';
     if (success) button.classList.add('btn-success-flash');
   }
-  setTimeout(() => {
+  setTimeout(function() {
     button.textContent = originalText;
     button.classList.remove('btn-success-flash');
   }, 1500);
