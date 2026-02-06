@@ -1,0 +1,16 @@
+{
+  "name": "webdev-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A collection of browser-based utilities for web developers",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "node --test",
+    "build:suggested-tools": "node scripts/build-suggested-tools.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0"
+  }
+}
