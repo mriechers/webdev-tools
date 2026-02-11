@@ -483,13 +483,29 @@ function tidy(html, opts) {
         // Remove empty tags
         if (opts.removeEmptyTags) {
           const nextToken = tokens[i + 1];
-          if (nextToken && nextToken.type === TokenType.CLOSE_TAG &&
-              nextToken.tagName.toLowerCase() === lowerName &&
-              !VOID_ELEMENTS.has(lowerName) &&
-              !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName)) {
+          const canRemove = !VOID_ELEMENTS.has(lowerName) &&
+              !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
+
+          // Case 1: <tag></tag> — directly empty
+          if (canRemove && nextToken &&
+              nextToken.type === TokenType.CLOSE_TAG &&
+              nextToken.tagName.toLowerCase() === lowerName) {
             fixCount++;
             i++;
             break;
+          }
+
+          // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
+          if (canRemove && nextToken && nextToken.type === TokenType.TEXT) {
+            const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
+            const closeToken = tokens[i + 2];
+            if (!stripped &&
+                closeToken && closeToken.type === TokenType.CLOSE_TAG &&
+                closeToken.tagName.toLowerCase() === lowerName) {
+              fixCount++;
+              i += 2;
+              break;
+            }
           }
         }
 
@@ -805,6 +821,52 @@ function init() {
 
   // ---- Load persisted options ----
   loadTidyOptions();
+
+  // ---- Rich text toolbar ----
+  var editorToolbar = document.querySelector('.editor-toolbar');
+  if (editorToolbar) {
+    editorToolbar.addEventListener('click', function(e) {
+      var btn = e.target.closest('.btn-toolbar');
+      if (!btn) return;
+      e.preventDefault();
+
+      var command = btn.getAttribute('data-command');
+      var value = btn.getAttribute('data-value') || null;
+
+      // formatBlock needs angle-bracket-wrapped tag name
+      if (command === 'formatBlock' && value) {
+        value = '<' + value + '>';
+      }
+
+      inputEditor.focus();
+      document.execCommand(command, false, value);
+      syncVisualToSource();
+    });
+
+    // Track active formatting state via selectionchange
+    var toolbarButtons = editorToolbar.querySelectorAll('.btn-toolbar');
+
+    document.addEventListener('selectionchange', function() {
+      if (document.activeElement !== inputEditor) return;
+
+      for (var i = 0; i < toolbarButtons.length; i++) {
+        var btn = toolbarButtons[i];
+        var command = btn.getAttribute('data-command');
+        var value = btn.getAttribute('data-value') || null;
+        var isActive = false;
+
+        if (command === 'bold' || command === 'italic' ||
+            command === 'insertOrderedList' || command === 'insertUnorderedList') {
+          isActive = document.queryCommandState(command);
+        } else if (command === 'formatBlock' && value) {
+          var current = document.queryCommandValue('formatBlock');
+          isActive = current.toLowerCase() === value.toLowerCase();
+        }
+
+        btn.classList.toggle('active', isActive);
+      }
+    });
+  }
 
   // ---- Helper: push to undo stack ----
   function pushUndo() {
