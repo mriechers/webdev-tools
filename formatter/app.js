@@ -792,6 +792,8 @@ function cleanClipboardHTML(html) {
   if (fragStart !== -1 && fragEnd !== -1) {
     cleaned = cleaned.substring(fragStart + '<!--StartFragment-->'.length, fragEnd);
   }
+  // Strip Google Docs wrapper span (id="docs-internal-guid-...")
+  cleaned = cleaned.replace(/^<span id="docs-internal-guid-[^"]*">([\s\S]*)<\/span>$/i, '$1');
   return cleaned.trim();
 }
 
