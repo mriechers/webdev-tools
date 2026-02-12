@@ -1,0 +1,700 @@
+/*
+ * Shared Shell — Design Tokens + Shell Layout + A11y Preferences
+ * ==============================================================
+ * Single source of truth for the webdev-tools design system.
+ * Every tool page imports this before its own styles.css.
+ *
+ * Contents:
+ *   1. Design tokens (colors, spacing, typography, radii, transitions)
+ *   2. Light theme override
+ *   3. A11y preference overrides (high-contrast, text scale)
+ *   4. Reset & base styles
+ *   5. Shell layout (header, nav, main, footer, skip-link)
+ *   6. Shell component patterns (toggle, dialog)
+ *   7. Responsive shell adjustments
+ *   8. Reduced-motion + print
+ */
+
+/* ============================================================
+   1. DESIGN TOKENS
+   ============================================================ */
+:root {
+  /* Colors — dark theme */
+  --color-bg: #0f1117;
+  --color-surface: #1a1d27;
+  --color-surface-raised: #242734;
+  --color-border: #2e3245;
+  --color-border-hover: #454b66;
+  --color-text: #e1e4ed;
+  --color-text-muted: #8b90a5;
+  --color-text-heading: #f0f2f8;
+  --color-primary: #5b8af5;
+  --color-primary-hover: #7aa2f7;
+  --color-success: #4ade80;
+  --color-warning: #facc15;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+
+  /* Shell-specific */
+  --color-nav-bg: #141620;
+  --color-status-bar-bg: #0c0e14;
+  --shell-max-width: 1400px;
+
+  /* Spacing — 4px base grid */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 1.875rem;
+  --line-height: 1.6;
+
+  /* A11y text scale — adjusted by preferences panel */
+  --text-scale: 1;
+
+  /* Shared editor metrics — textarea and pre MUST match */
+  --editor-font: var(--font-mono);
+  --editor-size: var(--text-sm);
+  --editor-line-height: 1.6;
+  --editor-padding: var(--space-md);
+  --editor-tab-size: 2;
+
+  /* Layout */
+  --max-width: 1400px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+
+  /* Syntax highlighting — dark theme */
+  --hl-tag: #f07178;
+  --hl-attr: #c792ea;
+  --hl-value: #c3e88d;
+  --hl-comment: #546e7a;
+  --hl-bracket: #89ddff;
+}
+
+/* ============================================================
+   2. LIGHT THEME OVERRIDE
+   ============================================================ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: #f5f6fa;
+    --color-surface: #ffffff;
+    --color-surface-raised: #f0f1f5;
+    --color-border: #d4d7e0;
+    --color-border-hover: #b0b5c5;
+    --color-text: #1a1d27;
+    --color-text-muted: #5c6178;
+    --color-text-heading: #0f1117;
+    --color-primary: #3b6fd9;
+    --color-primary-hover: #2d5bbf;
+    --color-success: #16a34a;
+    --color-warning: #ca8a04;
+    --color-error: #dc2626;
+    --color-info: #2563eb;
+
+    --color-nav-bg: #e8e9f0;
+    --color-status-bar-bg: #dddee6;
+
+    /* Syntax highlighting — light theme */
+    --hl-tag: #c41a16;
+    --hl-attr: #7928a1;
+    --hl-value: #3a7d0a;
+    --hl-comment: #8e908c;
+    --hl-bracket: #0550ae;
+  }
+}
+
+/* ============================================================
+   3. A11Y PREFERENCE OVERRIDES
+   ============================================================ */
+
+/* Text scale — applied to html element via JS */
+html[data-text-scale="large"] { --text-scale: 1.15; }
+html[data-text-scale="larger"] { --text-scale: 1.3; }
+
+html[data-text-scale="large"],
+html[data-text-scale="larger"] {
+  font-size: calc(16px * var(--text-scale));
+}
+
+/* High contrast — toggled by .high-contrast on <html> */
+html.high-contrast {
+  --color-bg: #000000;
+  --color-surface: #0a0a0a;
+  --color-surface-raised: #1a1a1a;
+  --color-border: #555555;
+  --color-border-hover: #777777;
+  --color-text: #ffffff;
+  --color-text-muted: #cccccc;
+  --color-text-heading: #ffffff;
+  --color-primary: #6db3f8;
+  --color-primary-hover: #9dcbff;
+  --color-nav-bg: #050505;
+  --color-status-bar-bg: #000000;
+}
+
+@media (prefers-color-scheme: light) {
+  html.high-contrast {
+    --color-bg: #ffffff;
+    --color-surface: #ffffff;
+    --color-surface-raised: #f0f0f0;
+    --color-border: #333333;
+    --color-border-hover: #111111;
+    --color-text: #000000;
+    --color-text-muted: #333333;
+    --color-text-heading: #000000;
+    --color-primary: #0044cc;
+    --color-primary-hover: #002288;
+    --color-nav-bg: #f5f5f5;
+    --color-status-bar-bg: #eeeeee;
+  }
+}
+
+/* ============================================================
+   4. RESET & BASE
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--line-height);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-image: linear-gradient(
+    180deg,
+    var(--color-bg) 0%,
+    color-mix(in srgb, var(--color-bg) 95%, var(--color-primary)) 100%
+  );
+  background-attachment: fixed;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
+  text-decoration: underline;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--color-surface-raised);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================================
+   5. SHELL LAYOUT
+   ============================================================ */
+
+/* Skip to content — first focusable element */
+.shell-skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-md);
+  z-index: 1000;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  text-decoration: none;
+  transition: top var(--transition-fast);
+}
+
+.shell-skip-link:focus {
+  top: 0;
+  color: #fff;
+  text-decoration: none;
+}
+
+/* Header */
+.shell-header {
+  display: block;
+  background: var(--color-nav-bg);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.shell-header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  max-width: var(--shell-max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+  height: 48px;
+}
+
+.shell-logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-decoration: none;
+  color: var(--color-text-heading);
+  font-weight: 700;
+  font-size: var(--text-base);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.shell-logo:hover {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.shell-logo-img {
+  width: 24px;
+  height: 24px;
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: light) {
+  .shell-logo-img {
+    filter: none;
+  }
+}
+
+html.high-contrast .shell-logo-img {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: light) {
+  html.high-contrast .shell-logo-img {
+    filter: none;
+  }
+}
+
+/* Nav */
+.shell-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: var(--space-lg);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.shell-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.shell-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.shell-nav a:hover {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  text-decoration: none;
+}
+
+.shell-nav a[aria-current="page"] {
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  font-weight: 600;
+}
+
+/* Header actions (gear icon, etc.) */
+.shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: auto;
+}
+
+.shell-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all var(--transition-fast);
+}
+
+.shell-icon-btn:hover {
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border-color: var(--color-border);
+}
+
+/* Main content area */
+.shell-main {
+  flex: 1;
+  max-width: var(--shell-max-width);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+}
+
+/* Footer */
+.shell-footer {
+  display: block;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-status-bar-bg);
+  margin-top: auto;
+}
+
+.shell-footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  max-width: var(--shell-max-width);
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.shell-footer-inner a {
+  color: var(--color-text-muted);
+}
+
+.shell-footer-inner a:hover {
+  color: var(--color-primary);
+}
+
+.shell-footer-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.shell-footer-logo {
+  width: 18px;
+  height: 18px;
+  filter: invert(1);
+  opacity: 0.6;
+}
+
+@media (prefers-color-scheme: light) {
+  .shell-footer-logo {
+    filter: none;
+  }
+}
+
+html.high-contrast .shell-footer-logo {
+  filter: invert(1);
+}
+
+@media (prefers-color-scheme: light) {
+  html.high-contrast .shell-footer-logo {
+    filter: none;
+  }
+}
+
+/* ============================================================
+   6. SHELL COMPONENT PATTERNS
+   ============================================================ */
+
+/* A11y preferences panel — popover triggered by gear icon */
+.shell-prefs-panel {
+  position: absolute;
+  top: calc(100% + var(--space-xs));
+  right: 0;
+  z-index: 200;
+  min-width: 240px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  padding: var(--space-md);
+}
+
+.shell-prefs-panel[hidden] {
+  display: none;
+}
+
+.shell-prefs-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-heading);
+  margin-bottom: var(--space-md);
+}
+
+.shell-prefs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+}
+
+.shell-prefs-row + .shell-prefs-row {
+  border-top: 1px solid var(--color-border);
+}
+
+.shell-prefs-label {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+/* CSS-only toggle switch */
+.shell-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.shell-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.shell-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--color-border);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.shell-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: var(--color-text);
+  border-radius: 50%;
+  transition: transform var(--transition-fast);
+}
+
+.shell-toggle input:checked + .shell-toggle-slider {
+  background: var(--color-primary);
+}
+
+.shell-toggle input:checked + .shell-toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.shell-toggle input:focus-visible + .shell-toggle-slider {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Text size select within prefs */
+.shell-prefs-select {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* Keyboard shortcuts dialog — native <dialog> */
+.shell-dialog {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  max-width: 480px;
+  width: 90vw;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.shell-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.shell-dialog h2 {
+  font-size: var(--text-lg);
+  color: var(--color-text-heading);
+  margin-bottom: var(--space-md);
+}
+
+.shell-shortcuts-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.shell-shortcuts-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) 0;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.shell-shortcuts-list li:last-child {
+  border-bottom: none;
+}
+
+.shell-kbd {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-heading);
+}
+
+.shell-dialog-close {
+  display: block;
+  margin-top: var(--space-md);
+  margin-left: auto;
+  padding: var(--space-xs) var(--space-md);
+  font-size: var(--text-sm);
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.shell-dialog-close:hover {
+  background: var(--color-border);
+}
+
+/* ============================================================
+   7. RESPONSIVE SHELL ADJUSTMENTS
+   ============================================================ */
+@media (max-width: 640px) {
+  .shell-header-inner {
+    gap: var(--space-sm);
+  }
+
+  .shell-logo span {
+    /* Hide text, keep icon on very small screens */
+    display: none;
+  }
+
+  .shell-nav {
+    margin-left: var(--space-sm);
+    gap: 2px;
+  }
+
+  .shell-nav a {
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 0.75rem;
+  }
+
+  .shell-footer-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: var(--space-xs);
+  }
+}
+
+/* ============================================================
+   8. REDUCED MOTION + PRINT
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus-visible for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+@media print {
+  .shell-header,
+  .shell-footer,
+  .shell-skip-link {
+    display: none;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+}

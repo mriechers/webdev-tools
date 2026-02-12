@@ -11,103 +11,20 @@
   <meta property="og:description" content="A collection of lightweight, client-side web tools — no dependencies, no tracking, runs entirely in your browser.">
   <meta property="og:type" content="website">
 
+  <!-- Shared shell: design tokens + shell layout -->
+  <link rel="stylesheet" href="shared/shell.css">
+
   <style>
     /*
      * Landing page styles
-     * Uses the same design tokens as the individual tools.
+     * Only layout-specific styles — tokens come from shell.css
      */
-    :root {
-      --color-bg: #0f1117;
-      --color-surface: #1a1d27;
-      --color-surface-raised: #242734;
-      --color-border: #2e3245;
-      --color-border-hover: #454b66;
-      --color-text: #e1e4ed;
-      --color-text-muted: #8b90a5;
-      --color-text-heading: #f0f2f8;
-      --color-primary: #5b8af5;
-      --color-primary-hover: #7aa2f7;
-
-      --space-sm: 8px;
-      --space-md: 16px;
-      --space-lg: 24px;
-      --space-xl: 32px;
-      --space-2xl: 48px;
-
-      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --text-sm: 0.8125rem;
-      --text-base: 0.9375rem;
-      --text-lg: 1.125rem;
-      --text-xl: 1.5rem;
-      --text-2xl: 1.875rem;
-
-      --max-width: 900px;
-      --radius-md: 10px;
-      --radius-lg: 14px;
-      --transition-fast: 150ms ease;
-    }
-
-    @media (prefers-color-scheme: light) {
-      :root {
-        --color-bg: #f5f6fa;
-        --color-surface: #ffffff;
-        --color-surface-raised: #f0f1f5;
-        --color-border: #d4d7e0;
-        --color-border-hover: #b0b5c5;
-        --color-text: #1a1d27;
-        --color-text-muted: #5c6178;
-        --color-text-heading: #0f1117;
-        --color-primary: #3b6fd9;
-        --color-primary-hover: #2d5bbf;
-      }
-    }
-
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html {
-      font-size: 16px;
-    }
-
-    body {
-      font-family: var(--font-sans);
-      font-size: var(--text-base);
-      line-height: 1.6;
-      color: var(--color-text);
-      background-color: var(--color-bg);
-      min-height: 100vh;
-      background-image: linear-gradient(
-        180deg,
-        var(--color-bg) 0%,
-        color-mix(in srgb, var(--color-bg) 95%, var(--color-primary)) 100%
-      );
-      background-attachment: fixed;
-    }
-
-    a {
-      color: var(--color-primary);
-      text-decoration: none;
-    }
-    a:hover {
-      color: var(--color-primary-hover);
-      text-decoration: underline;
-    }
-
-    .container {
-      max-width: var(--max-width);
-      margin: 0 auto;
-      padding: var(--space-md);
-    }
-
-    header {
+    .landing-header {
       padding: var(--space-2xl) 0 var(--space-xl);
       text-align: center;
     }
 
-    h1 {
+    .landing-header h1 {
       font-size: var(--text-2xl);
       font-weight: 700;
       color: var(--color-text-heading);
@@ -178,22 +95,6 @@
       color: var(--color-text-muted);
     }
 
-    footer {
-      margin-top: var(--space-2xl);
-      padding: var(--space-xl) 0;
-      border-top: 1px solid var(--color-border);
-      text-align: center;
-    }
-
-    footer p {
-      font-size: var(--text-sm);
-      color: var(--color-text-muted);
-    }
-
-    footer p + p {
-      margin-top: var(--space-sm);
-    }
-
     .header-logo {
       width: 140px;
       height: auto;
@@ -204,21 +105,18 @@
       filter: invert(1);
     }
 
-    .footer-credit {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-sm);
+    @media (prefers-color-scheme: light) {
+      .header-logo {
+        filter: none;
+      }
     }
 
-    .footer-logo {
-      width: 28px;
-      height: 28px;
+    html.high-contrast .header-logo {
       filter: invert(1);
     }
 
     @media (prefers-color-scheme: light) {
-      .header-logo,
-      .footer-logo {
+      html.high-contrast .header-logo {
         filter: none;
       }
     }
@@ -330,47 +228,48 @@
 </head>
 <body>
 
-  <div class="container">
-    <header>
+  <shell-header current="home"></shell-header>
+
+  <main id="main-content" class="shell-main">
+    <div class="landing-header">
       <img src="assets/images/logo.png" alt="Mark Riechers logo" class="header-logo">
       <h1>Simple Web Publishing Tools</h1>
       <p class="subtitle">
         Lightweight utilities that run entirely in your browser — no tracking, no dependencies.
       </p>
-    </header>
+    </div>
 
-    <main>
-      <div class="tools-grid">
+    <div class="tools-grid">
 
-        <a href="og-image/" class="tool-card">
-          <span class="tool-icon" aria-hidden="true">🔍</span>
-          <h2 class="tool-name">OG Image Preview</h2>
-          <p class="tool-description">
-            See how your Open Graph images will appear on Facebook, X/Twitter, LinkedIn, Discord, Slack, iMessage, and more before you publish.
-          </p>
-          <div class="tool-tags">
-            <span class="tool-tag">Social media</span>
-            <span class="tool-tag">Meta tags</span>
-            <span class="tool-tag">SEO</span>
-          </div>
-        </a>
+      <a href="og-image/" class="tool-card">
+        <span class="tool-icon" aria-hidden="true">🔍</span>
+        <h2 class="tool-name">OG Image Preview</h2>
+        <p class="tool-description">
+          See how your Open Graph images will appear on Facebook, X/Twitter, LinkedIn, Discord, Slack, iMessage, and more before you publish.
+        </p>
+        <div class="tool-tags">
+          <span class="tool-tag">Social media</span>
+          <span class="tool-tag">Meta tags</span>
+          <span class="tool-tag">SEO</span>
+        </div>
+      </a>
 
-        <a href="formatter/" class="tool-card">
-          <span class="tool-icon" aria-hidden="true">&lt;/&gt;</span>
-          <h2 class="tool-name">HTML Formatter &amp; Tidy</h2>
-          <p class="tool-description">
-            Paste rich text or HTML, strip inline styles and classes, and get clean markup ready for your CMS.
-          </p>
-          <div class="tool-tags">
-            <span class="tool-tag">HTML</span>
-            <span class="tool-tag">Rich text</span>
-            <span class="tool-tag">CMS cleanup</span>
-          </div>
-        </a>
+      <a href="formatter/" class="tool-card">
+        <span class="tool-icon" aria-hidden="true">&lt;/&gt;</span>
+        <h2 class="tool-name">HTML Formatter &amp; Tidy</h2>
+        <p class="tool-description">
+          Paste rich text or HTML, strip inline styles and classes, and get clean markup ready for your CMS.
+        </p>
+        <div class="tool-tags">
+          <span class="tool-tag">HTML</span>
+          <span class="tool-tag">Rich text</span>
+          <span class="tool-tag">CMS cleanup</span>
+        </div>
+      </a>
 
-      </div>
+    </div>
 
-      <!-- SUGGESTED_TOOLS_START -->
+    <!-- SUGGESTED_TOOLS_START -->
       <section class="suggested-tools">
         <h2 class="section-heading">Suggested Tools</h2>
         <div class="tools-grid suggested-grid">
@@ -422,21 +321,11 @@
         </div>
       </section>
 <!-- SUGGESTED_TOOLS_END -->
-    </main>
+  </main>
 
-    <footer>
-      <p>
-        All tools process data locally in your browser — nothing is sent to a server.
-      </p>
-      <p class="footer-credit">
-        <img src="assets/images/logo-small.png" alt="" class="footer-logo">
-        Made by Mark Riechers
-      </p>
-      <p>
-        <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
-      </p>
-    </footer>
-  </div>
+  <shell-footer></shell-footer>
+
+  <script src="shared/shell.js" type="module"></script>
 
 </body>
 </html>

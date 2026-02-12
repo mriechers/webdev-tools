@@ -17,21 +17,12 @@
     happens client-side. The only server dependency is a small CORS proxy
     (Cloudflare Worker or similar) needed because most websites block
     cross-origin fetches of their HTML.
-
-    Why not pure client-side?
-    Browsers enforce CORS: you can't fetch arbitrary HTML from another domain
-    with JavaScript alone. We need a proxy that fetches on the server side and
-    returns the meta tags to us. See /functions/fetch-meta.js for that proxy.
   -->
 
-  <!-- Inline critical styles for fast first paint, then load full stylesheet -->
+  <!-- Shared shell: design tokens + shell layout -->
+  <link rel="stylesheet" href="../shared/shell.css">
+  <!-- Tool-specific styles -->
   <link rel="stylesheet" href="styles.css">
-
-  <!--
-    We use zero external CSS frameworks. The styling is intentionally minimal —
-    this is a utility tool, not a marketing page. A few CSS custom properties
-    keep colors and spacing consistent without a build step.
-  -->
 
   <!-- Favicon: simple OG-themed SVG so it works without an image file -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔍</text></svg>">
@@ -43,22 +34,20 @@
 </head>
 <body>
 
-  <!--
-    Layout structure:
-    1. Header — title + brief description
-    2. Input section — URL field + fetch button + proxy selector
-    3. Results section — OG tag summary + platform preview grid
-    4. Footer — links to debug tools, source code
-  -->
+  <shell-header current="og-image"></shell-header>
 
-  <header class="app-header">
-    <h1>OG Image Preview Tool</h1>
-    <p class="subtitle">
-      Check how your link previews will look across social platforms before you publish.
-    </p>
-  </header>
+  <main id="main-content" class="shell-main">
+    <!-- ============================================================
+         TOOL HEADER
+         Tool-specific title and description within the shell.
+         ============================================================ -->
+    <div class="tool-header">
+      <h1>OG Image Preview Tool</h1>
+      <p class="subtitle">
+        Check how your link previews will look across social platforms before you publish.
+      </p>
+    </div>
 
-  <main>
     <!-- ============================================================
          INPUT SECTION
          The user enters a URL and clicks "Preview". We also let them
@@ -82,7 +71,6 @@
           <button type="submit" id="fetch-btn" class="btn btn-primary">
             <span class="btn-label">Preview</span>
             <span class="btn-loading" aria-hidden="true" hidden>
-              <!-- Simple CSS spinner, no external dependencies -->
               <span class="spinner"></span>
               Fetching…
             </span>
@@ -93,9 +81,6 @@
           or try an example:
         </p>
 
-        <!-- Example selector — lets users load a pre-configured example
-             without needing a real URL. The example page is hosted alongside
-             this tool, so it bypasses CORS entirely (same origin). -->
         <div class="example-selector">
           <button type="button" class="example-btn" data-example="perfect">
             <span class="example-btn-icon" aria-hidden="true">&#10003;</span>
@@ -158,8 +143,6 @@
 
     <!-- ============================================================
          ERROR DISPLAY
-         Shows user-friendly messages when things go wrong.
-         Hidden by default, shown via JS when errors occur.
          ============================================================ -->
     <section id="error-section" class="error-section" hidden aria-live="polite">
       <div class="error-card">
@@ -174,9 +157,6 @@
 
     <!-- ============================================================
          OG TAG SUMMARY
-         Before showing platform previews, we display the raw OG data
-         we found. This helps users understand what data is available
-         and what's missing — a diagnostic view.
          ============================================================ -->
     <section id="meta-summary" class="meta-summary" hidden aria-label="Detected meta tags">
       <h2>Detected Open Graph Tags</h2>
@@ -187,16 +167,11 @@
 
     <!-- ============================================================
          PLATFORM PREVIEWS
-         A grid of cards, one per platform. Each card simulates how
-         the link preview would appear on that platform, using the
-         platform's actual aspect ratio and cropping behavior.
-         Organized by tier (Critical → Important → Nice-to-have).
          ============================================================ -->
     <section id="previews-section" class="previews-section" hidden aria-label="Platform previews">
       <div class="previews-header">
         <h2>Platform Previews</h2>
 
-        <!-- Tier filter tabs -->
         <div class="tier-tabs" role="tablist" aria-label="Filter by platform tier">
           <button role="tab" class="tier-tab active" data-tier="all" aria-selected="true">
             All Platforms
@@ -217,8 +192,6 @@
         <!-- Platform preview cards are generated by JavaScript -->
       </div>
 
-      <!-- Copy a plain-text report of the results for pasting into
-           Claude Code, a GitHub issue, Slack, etc. -->
       <div class="copy-report-row">
         <button type="button" id="copy-report-btn" class="btn btn-copy-report">
           <span id="copy-report-label">Copy text report</span>
@@ -231,8 +204,6 @@
 
     <!-- ============================================================
          META TAG SUGGESTIONS
-         When we detect missing or suboptimal tags, we generate
-         copy-paste-ready HTML that the user can add to their page.
          ============================================================ -->
     <section id="suggestions-section" class="suggestions-section" hidden aria-label="Suggested meta tags">
       <h2>Suggested Meta Tags</h2>
@@ -244,14 +215,15 @@
         <button id="copy-suggestions" class="btn btn-small">Copy to clipboard</button>
       </div>
     </section>
-  </main>
 
-  <footer class="app-footer">
-    <div class="footer-content">
+    <!-- ============================================================
+         RELATED TOOLS FOOTER
+         ============================================================ -->
+    <nav class="related-tools" aria-label="Related tools">
       <p>
         <strong>Related tools:</strong>
-        <a href="../formatter/">HTML Formatter</a> ·
-        <a href="../">All Tools</a> ·
+        <a href="../formatter/">HTML Formatter</a> &middot;
+        <a href="../">All Tools</a> &middot;
 <!-- SUGGESTED_TOOLS_START -->
         <a href="https://embedresponsively.com/" target="_blank" rel="noopener">Embed Responsively</a> &middot;
         <a href="https://chatgpt.com/g/g-6821f526808c81918e50e06207c3f359-image-alt-writer-2" target="_blank" rel="noopener">Image Alt Writer 2</a>
@@ -259,26 +231,16 @@
       </p>
       <p>
         <strong>Platform debug tools:</strong>
-        <a href="https://developers.facebook.com/tools/debug/" target="_blank" rel="noopener">Facebook Debugger</a> ·
-        <a href="https://cards-dev.twitter.com/validator" target="_blank" rel="noopener">X/Twitter Validator</a> ·
+        <a href="https://developers.facebook.com/tools/debug/" target="_blank" rel="noopener">Facebook Debugger</a> &middot;
+        <a href="https://cards-dev.twitter.com/validator" target="_blank" rel="noopener">X/Twitter Validator</a> &middot;
         <a href="https://www.linkedin.com/post-inspector/inspect/" target="_blank" rel="noopener">LinkedIn Inspector</a>
       </p>
-      <p class="footer-note">
-        Previews are approximations — actual rendering may vary slightly.
-        Platforms may cache OG data; use the debug tools above to force a refresh.
-      </p>
-      <p class="footer-note">
-        <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
-      </p>
-    </div>
-  </footer>
+    </nav>
+  </main>
 
-  <!--
-    Script loading strategy:
-    We load app.js at the end of body (not in head) so the DOM is ready
-    without needing DOMContentLoaded listeners. No module bundler needed —
-    this is plain ES6+ JavaScript that works in all modern browsers.
-  -->
+  <shell-footer></shell-footer>
+
+  <script src="../shared/shell.js" type="module"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,187 +1,19 @@
 /*
- * HTML Formatter & Tidy — Styles
- * ================================
- * Reuses the exact design tokens from the OG Image Preview Tool.
- * Same dark-first theme, same spacing grid, same type scale.
- * Additional styles for the two-pane editor layout,
- * syntax highlighting overlay, and split button dropdown.
+ * HTML Formatter & Tidy — Tool-specific Styles
+ * =============================================
+ * Design tokens, resets, and base styles come from ../shared/shell.css.
+ * This file contains only formatter-specific layout and components.
  */
 
 /* ============================================================
-   CUSTOM PROPERTIES (Design Tokens)
-   Identical to the OG Image Preview Tool.
+   TOOL HEADER
    ============================================================ */
-:root {
-  /* Colors — dark theme */
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-raised: #242734;
-  --color-border: #2e3245;
-  --color-border-hover: #454b66;
-  --color-text: #e1e4ed;
-  --color-text-muted: #8b90a5;
-  --color-text-heading: #f0f2f8;
-  --color-primary: #5b8af5;
-  --color-primary-hover: #7aa2f7;
-  --color-success: #4ade80;
-  --color-warning: #facc15;
-  --color-error: #f87171;
-  --color-info: #60a5fa;
-
-  /* Spacing — 4px base grid */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 1.875rem;
-  --line-height: 1.6;
-
-  /* Shared editor metrics — textarea and pre MUST match */
-  --editor-font: var(--font-mono);
-  --editor-size: var(--text-sm);
-  --editor-line-height: 1.6;
-  --editor-padding: var(--space-md);
-  --editor-tab-size: 2;
-
-  /* Layout */
-  --max-width: 1400px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-
-  /* Syntax highlighting — dark theme */
-  --hl-tag: #f07178;
-  --hl-attr: #c792ea;
-  --hl-value: #c3e88d;
-  --hl-comment: #546e7a;
-  --hl-bracket: #89ddff;
-}
-
-/* Light theme override — respects OS preference */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-bg: #f5f6fa;
-    --color-surface: #ffffff;
-    --color-surface-raised: #f0f1f5;
-    --color-border: #d4d7e0;
-    --color-border-hover: #b0b5c5;
-    --color-text: #1a1d27;
-    --color-text-muted: #5c6178;
-    --color-text-heading: #0f1117;
-    --color-primary: #3b6fd9;
-    --color-primary-hover: #2d5bbf;
-    --color-success: #16a34a;
-    --color-warning: #ca8a04;
-    --color-error: #dc2626;
-    --color-info: #2563eb;
-
-    /* Syntax highlighting — light theme */
-    --hl-tag: #c41a16;
-    --hl-attr: #7928a1;
-    --hl-value: #3a7d0a;
-    --hl-comment: #8e908c;
-    --hl-bracket: #0550ae;
-  }
-}
-
-/* ============================================================
-   RESET & BASE
-   ============================================================ */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: var(--line-height);
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  min-height: 100vh;
-  background-image: linear-gradient(
-    180deg,
-    var(--color-bg) 0%,
-    color-mix(in srgb, var(--color-bg) 95%, var(--color-primary)) 100%
-  );
-  background-attachment: fixed;
-}
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-a:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-}
-
-code {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-  background: var(--color-surface-raised);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* ============================================================
-   LAYOUT
-   ============================================================ */
-.app-header,
-main,
-.app-footer {
-  max-width: var(--max-width);
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: var(--space-md);
-  padding-right: var(--space-md);
-}
-
-/* ============================================================
-   HEADER
-   ============================================================ */
-.app-header {
-  padding-top: var(--space-2xl);
-  padding-bottom: var(--space-lg);
+.tool-header {
   text-align: center;
+  margin-bottom: var(--space-lg);
 }
 
-.app-header h1 {
+.tool-header h1 {
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--color-text-heading);
@@ -197,7 +29,6 @@ main,
 /* ============================================================
    FORMATTING BAR
    Compact single-row bar with indent-size + wrap-length.
-   Replaces the old full options section.
    ============================================================ */
 .formatting-bar {
   display: flex;
@@ -783,28 +614,6 @@ main,
 }
 
 /* ============================================================
-   FOOTER
-   ============================================================ */
-.app-footer {
-  padding: var(--space-xl) var(--space-md);
-  border-top: 1px solid var(--color-border);
-  margin-top: var(--space-xl);
-}
-
-.footer-content {
-  text-align: center;
-}
-
-.footer-content p {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
-}
-
-.footer-note {
-  margin-top: var(--space-sm);
-}
-
-/* ============================================================
    RESPONSIVE DESIGN
    ============================================================ */
 
@@ -879,14 +688,23 @@ main,
   }
 }
 
-/* Focus-visible for keyboard users only */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+/* ============================================================
+   RELATED TOOLS NAV
+   ============================================================ */
+.related-tools {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
 }
 
-:focus:not(:focus-visible) {
-  outline: none;
+.related-tools p {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.related-tools p + p {
+  margin-top: var(--space-sm);
 }
 
 /* ============================================================
@@ -899,13 +717,8 @@ main,
   .pane-actions,
   .stats-section,
   .preview-section,
-  .app-footer {
+  .related-tools {
     display: none;
-  }
-
-  body {
-    background: white;
-    color: black;
   }
 
   .editor-panes {
