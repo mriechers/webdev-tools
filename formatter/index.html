@@ -16,6 +16,9 @@
     Designed to run on GitHub Pages.
   -->
 
+  <!-- Shared shell: design tokens + shell layout -->
+  <link rel="stylesheet" href="../shared/shell.css">
+  <!-- Tool-specific styles -->
   <link rel="stylesheet" href="styles.css">
 
   <!-- Favicon: code-themed SVG -->
@@ -28,14 +31,20 @@
 </head>
 <body>
 
-  <header class="app-header">
-    <h1>HTML Formatter &amp; Tidy</h1>
-    <p class="subtitle">
-      Paste rich text from any source, strip unwanted styles, and get clean HTML for your CMS.
-    </p>
-  </header>
+  <shell-header current="formatter"></shell-header>
 
-  <main>
+  <main id="main-content" class="shell-main">
+    <!-- ============================================================
+         TOOL HEADER
+         Tool-specific title and description within the shell.
+         ============================================================ -->
+    <div class="tool-header">
+      <h1>HTML Formatter &amp; Tidy</h1>
+      <p class="subtitle">
+        Paste rich text from any source, strip unwanted styles, and get clean HTML for your CMS.
+      </p>
+    </div>
+
     <!-- ============================================================
          FORMATTING BAR
          Compact single-row bar with indent-size + wrap-length selectors.
@@ -306,10 +315,11 @@
         <button id="error-dismiss" class="error-dismiss" aria-label="Dismiss error">&times;</button>
       </div>
     </section>
-  </main>
 
-  <footer class="app-footer">
-    <div class="footer-content">
+    <!-- ============================================================
+         RELATED TOOLS FOOTER
+         ============================================================ -->
+    <nav class="related-tools" aria-label="Related tools">
       <p>
         <strong>Related tools:</strong>
         <a href="../og-image/" rel="noopener">OG Image Preview</a> &middot;
@@ -323,15 +333,12 @@
         <a href="https://chatgpt.com/g/g-6821f526808c81918e50e06207c3f359-image-alt-writer-2" target="_blank" rel="noopener">Image Alt Writer 2</a>
 <!-- SUGGESTED_TOOLS_END -->
       </p>
-      <p class="footer-note">
-        All processing happens in your browser — nothing is sent to a server.
-      </p>
-      <p class="footer-note">
-        <a href="https://github.com/MarkOnFire/og-image-test" target="_blank" rel="noopener">Source on GitHub</a>
-      </p>
-    </div>
-  </footer>
+    </nav>
+  </main>
 
+  <shell-footer></shell-footer>
+
+  <script src="../shared/shell.js" type="module"></script>
   <script src="app.js"></script>
 </body>
 </html>

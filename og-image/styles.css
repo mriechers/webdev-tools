@@ -1,180 +1,19 @@
 /*
- * OG Image Preview Tool — Styles
- * ================================
- * Design philosophy: utility-first, minimal, accessible.
- *
- * - No CSS framework — just custom properties and a few reusable classes.
- * - Dark theme by default (most dev tools are dark) with OS-level override.
- * - Mobile-first: base styles are for narrow screens, wider layouts via @media.
- * - All colors meet WCAG AA contrast ratios.
- * - Status indicators use icons + text (not color alone) for accessibility.
+ * OG Image Preview Tool — Tool-specific Styles
+ * =============================================
+ * Design tokens, resets, and base styles come from ../shared/shell.css.
+ * This file contains only OG-image-specific layout and components.
  */
 
 /* ============================================================
-   CUSTOM PROPERTIES (Design Tokens)
-   Change these to re-theme the entire app.
+   TOOL HEADER
    ============================================================ */
-:root {
-  /* Colors — dark theme */
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-raised: #242734;
-  --color-border: #2e3245;
-  --color-border-hover: #454b66;
-  --color-text: #e1e4ed;
-  --color-text-muted: #8b90a5;
-  --color-text-heading: #f0f2f8;
-  --color-primary: #5b8af5;
-  --color-primary-hover: #7aa2f7;
-  --color-success: #4ade80;
-  --color-warning: #facc15;
-  --color-error: #f87171;
-  --color-info: #60a5fa;
-
-  /* Spacing — 4px base grid */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Typography */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-  --text-sm: 0.8125rem;
-  --text-base: 0.9375rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.5rem;
-  --text-2xl: 1.875rem;
-  --line-height: 1.6;
-
-  /* Layout */
-  --max-width: 1200px;
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-
-  /* Transitions */
-  --transition-fast: 150ms ease;
-  --transition-normal: 250ms ease;
-}
-
-/* Light theme override — respects OS preference */
-@media (prefers-color-scheme: light) {
-  :root {
-    --color-bg: #f5f6fa;
-    --color-surface: #ffffff;
-    --color-surface-raised: #f0f1f5;
-    --color-border: #d4d7e0;
-    --color-border-hover: #b0b5c5;
-    --color-text: #1a1d27;
-    --color-text-muted: #5c6178;
-    --color-text-heading: #0f1117;
-    --color-primary: #3b6fd9;
-    --color-primary-hover: #2d5bbf;
-    --color-success: #16a34a;
-    --color-warning: #ca8a04;
-    --color-error: #dc2626;
-    --color-info: #2563eb;
-  }
-}
-
-/* ============================================================
-   RESET & BASE
-   Minimal reset — just enough to normalize across browsers.
-   ============================================================ */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  font-size: 16px;
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: var(--line-height);
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  min-height: 100vh;
-
-  /* Subtle gradient gives depth without being distracting */
-  background-image: linear-gradient(
-    180deg,
-    var(--color-bg) 0%,
-    color-mix(in srgb, var(--color-bg) 95%, var(--color-primary)) 100%
-  );
-  background-attachment: fixed;
-}
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-a:hover {
-  color: var(--color-primary-hover);
-  text-decoration: underline;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
-code {
-  font-family: var(--font-mono);
-  font-size: 0.875em;
-  background: var(--color-surface-raised);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-}
-
-/* Screen-reader only utility — hides visually but remains accessible */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* ============================================================
-   LAYOUT
-   Simple centered column with comfortable reading width.
-   ============================================================ */
-.app-header,
-main,
-.app-footer {
-  max-width: var(--max-width);
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: var(--space-md);
-  padding-right: var(--space-md);
-}
-
-/* ============================================================
-   HEADER
-   ============================================================ */
-.app-header {
-  padding-top: var(--space-2xl);
-  padding-bottom: var(--space-lg);
+.tool-header {
   text-align: center;
+  margin-bottom: var(--space-lg);
 }
 
-.app-header h1 {
+.tool-header h1 {
   font-size: var(--text-2xl);
   font-weight: 700;
   color: var(--color-text-heading);
@@ -189,7 +28,6 @@ main,
 
 /* ============================================================
    INPUT SECTION
-   The URL input and proxy configuration area.
    ============================================================ */
 .input-section {
   background: var(--color-surface);
@@ -238,8 +76,6 @@ main,
 
 /* ============================================================
    EXAMPLE SELECTOR
-   Lets users load a built-in example to see a perfect setup
-   and learn what each tag does.
    ============================================================ */
 .example-selector {
   margin-top: var(--space-md);
@@ -354,7 +190,7 @@ main,
   background: var(--color-border);
 }
 
-/* Loading spinner — pure CSS, no images or libraries needed */
+/* Loading spinner */
 .spinner {
   display: inline-block;
   width: 14px;
@@ -371,7 +207,6 @@ main,
 
 /* ============================================================
    PROXY CONFIGURATION
-   Collapsed by default using <details>/<summary> — no JS needed.
    ============================================================ */
 .proxy-config {
   margin-top: var(--space-md);
@@ -437,7 +272,6 @@ main,
 
 /* ============================================================
    ERROR DISPLAY
-   A dismissible banner for showing fetch/parse errors.
    ============================================================ */
 .error-section {
   margin-bottom: var(--space-lg);
@@ -495,7 +329,6 @@ main,
 
 /* ============================================================
    META TAG SUMMARY
-   Grid showing detected OG tags and their values.
    ============================================================ */
 .meta-summary {
   margin-bottom: var(--space-lg);
@@ -513,7 +346,6 @@ main,
   gap: var(--space-sm);
 }
 
-/* Individual meta tag row */
 .meta-tag-row {
   display: flex;
   align-items: baseline;
@@ -549,8 +381,6 @@ main,
   font-style: italic;
 }
 
-/* Educational explanation shown below a tag when viewing a built-in example.
-   Uses flex-basis: 100% to force it onto its own line within the flex row. */
 .meta-tag-explain {
   flex-basis: 100%;
   font-size: 0.8rem;
@@ -562,7 +392,6 @@ main,
   line-height: 1.5;
 }
 
-/* Status badge used in meta tag rows */
 .status-badge {
   display: inline-flex;
   align-items: center;
@@ -591,7 +420,6 @@ main,
 
 /* ============================================================
    PLATFORM PREVIEWS
-   Grid of cards, each simulating one platform's link preview.
    ============================================================ */
 .previews-section {
   margin-bottom: var(--space-2xl);
@@ -609,7 +437,6 @@ main,
   color: var(--color-text-heading);
 }
 
-/* Tier filter tabs */
 .tier-tabs {
   display: flex;
   gap: var(--space-xs);
@@ -639,14 +466,12 @@ main,
   color: #fff;
 }
 
-/* Preview grid — responsive using CSS Grid auto-fit */
 .previews-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--space-lg);
 }
 
-/* Individual platform preview card */
 .preview-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -659,7 +484,6 @@ main,
   border-color: var(--color-border-hover);
 }
 
-/* Card header — platform name + tier badge + status icon */
 .preview-card-header {
   display: flex;
   align-items: center;
@@ -695,12 +519,6 @@ main,
   flex-shrink: 0;
 }
 
-/*
- * Preview image container — this is where the magic happens.
- * We use a padding-bottom trick to maintain the platform's
- * exact aspect ratio regardless of actual image dimensions.
- * The image is object-fit: cover to simulate center-cropping.
- */
 .preview-image-container {
   position: relative;
   width: 100%;
@@ -708,19 +526,16 @@ main,
   overflow: hidden;
 }
 
-/* Default aspect ratio is 1.91:1 (most common across platforms) */
 .preview-image-container::before {
   content: '';
   display: block;
-  padding-bottom: 52.36%; /* 1/1.91 * 100 = 52.36% */
+  padding-bottom: 52.36%;
 }
 
-/* 1:1 aspect ratio for Twitter summary cards */
 .preview-image-container.ratio-1-1::before {
   padding-bottom: 100%;
 }
 
-/* 16:9 for platforms that use it */
 .preview-image-container.ratio-16-9::before {
   padding-bottom: 56.25%;
 }
@@ -731,10 +546,9 @@ main,
   left: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Simulates center-crop behavior */
+  object-fit: cover;
 }
 
-/* Placeholder when no image is available */
 .preview-no-image {
   position: absolute;
   top: 0;
@@ -755,7 +569,6 @@ main,
   opacity: 0.5;
 }
 
-/* Preview text content — title + description + domain */
 .preview-text {
   padding: var(--space-sm) var(--space-md);
 }
@@ -788,7 +601,6 @@ main,
   letter-spacing: 0.03em;
 }
 
-/* Warnings shown below the preview */
 .preview-warnings {
   padding: var(--space-sm) var(--space-md);
   border-top: 1px solid var(--color-border);
@@ -823,9 +635,6 @@ main,
 
 /* ============================================================
    COPY TEXT REPORT
-   Button + hint row at the bottom of the previews section.
-   Copies a plain-text version of the results for pasting into
-   Claude Code, GitHub issues, Slack, etc.
    ============================================================ */
 .copy-report-row {
   display: flex;
@@ -869,7 +678,6 @@ main,
 
 /* ============================================================
    SUGGESTIONS SECTION
-   Copy-paste meta tag code block.
    ============================================================ */
 .suggestions-section {
   margin-bottom: var(--space-2xl);
@@ -911,27 +719,33 @@ main,
 }
 
 /* ============================================================
-   FOOTER
+   PLATFORM-SPECIFIC PREVIEW STYLES
    ============================================================ */
-.app-footer {
-  padding: var(--space-xl) var(--space-md);
-  border-top: 1px solid var(--color-border);
-  margin-top: var(--space-xl);
+.preview-card[data-platform="discord"] .preview-text {
+  border-left: 4px solid var(--color-primary);
+  margin: var(--space-sm);
+  padding-left: var(--space-md);
+  background: var(--color-surface-raised);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
-.footer-content {
-  text-align: center;
+.preview-card[data-platform="slack"] .preview-text {
+  border-left: 3px solid var(--color-text-muted);
+  padding-left: var(--space-md);
+  margin: var(--space-sm);
 }
 
-.footer-content p {
-  font-size: var(--text-sm);
-  color: var(--color-text-muted);
+.preview-card[data-platform="imessage"] {
+  border-radius: var(--radius-lg);
 }
 
-.footer-note {
-  margin-top: var(--space-sm);
+.preview-card[data-platform="whatsapp"] .preview-card-header {
+  border-bottom-color: #25d366;
 }
 
+/* ============================================================
+   FOOTER LOGO (legacy — used by footer-logo in-page)
+   ============================================================ */
 .footer-logo {
   width: 24px;
   height: 24px;
@@ -947,44 +761,8 @@ main,
 }
 
 /* ============================================================
-   PLATFORM-SPECIFIC PREVIEW STYLES
-   Some platforms have distinctive visual treatments.
-   These classes are added by JS based on the platform ID.
-   ============================================================ */
-
-/* Discord: colored left border + embed background */
-.preview-card[data-platform="discord"] .preview-text {
-  border-left: 4px solid var(--color-primary);
-  margin: var(--space-sm);
-  padding-left: var(--space-md);
-  background: var(--color-surface-raised);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-
-/* Slack: subtle left border accent */
-.preview-card[data-platform="slack"] .preview-text {
-  border-left: 3px solid var(--color-text-muted);
-  padding-left: var(--space-md);
-  margin: var(--space-sm);
-}
-
-/* iMessage: rounded bubble look */
-.preview-card[data-platform="imessage"] {
-  border-radius: var(--radius-lg);
-}
-
-/* WhatsApp: green-tinted accent */
-.preview-card[data-platform="whatsapp"] .preview-card-header {
-  border-bottom-color: #25d366;
-}
-
-/* ============================================================
    RESPONSIVE DESIGN
-   Mobile-first: the base styles work on narrow screens.
-   These media queries enhance for wider viewports.
    ============================================================ */
-
-/* Stack the input and button on very narrow screens */
 @media (max-width: 480px) {
   .input-row {
     flex-direction: column;
@@ -1018,7 +796,6 @@ main,
   }
 }
 
-/* Medium screens */
 @media (min-width: 768px) {
   .meta-tags-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -1027,14 +804,12 @@ main,
 
 /* ============================================================
    ANIMATIONS
-   Minimal motion — respects prefers-reduced-motion.
    ============================================================ */
 @media (prefers-reduced-motion: no-preference) {
   .preview-card {
     animation: fadeIn 0.3s ease both;
   }
 
-  /* Stagger animation for cards using custom property set by JS */
   .preview-card {
     animation-delay: calc(var(--card-index, 0) * 50ms);
   }
@@ -1051,32 +826,34 @@ main,
   }
 }
 
-/* Focus-visible for keyboard users only (not mouse clicks) */
-:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 2px;
+/* ============================================================
+   RELATED TOOLS NAV
+   ============================================================ */
+.related-tools {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
+  border-top: 1px solid var(--color-border);
+  text-align: center;
 }
 
-/* Remove outline for mouse users */
-:focus:not(:focus-visible) {
-  outline: none;
+.related-tools p {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.related-tools p + p {
+  margin-top: var(--space-sm);
 }
 
 /* ============================================================
    PRINT STYLES
-   In case someone wants to print/PDF their preview results.
    ============================================================ */
 @media print {
   .input-section,
   .proxy-config,
   .tier-tabs,
-  .app-footer {
+  .related-tools {
     display: none;
-  }
-
-  body {
-    background: white;
-    color: black;
   }
 
   .preview-card {
