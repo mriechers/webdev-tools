@@ -14,7 +14,19 @@ module.exports = [
     },
   },
   {
-    files: ['formatter/app.js', 'og-image/app.js'],
+    files: ['formatter/app.mjs'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { caughtErrors: 'none', argsIgnorePattern: '^_' }],
+    },
+  },
+  {
+    files: ['og-image/app.js'],
     languageOptions: {
       globals: {
         ...globals.browser,

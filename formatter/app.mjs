@@ -631,8 +631,72 @@ function compress(html) {
   return parts.join('');
 }
 
-// Keep backward compat alias
-const minify = compress;
+// ============================================================
+// TAG ATTRIBUTES — prettyhtml.com option #7
+// Literal port of removeTagAttributes() — byte-level state machine.
+// Preserves: <a href|download>, <img src>. Strips everything else.
+// ============================================================
+
+/**
+ * State legend:
+ *   1  = outside tag (emitting)
+ *   2  = inside tag name (until first space)
+ *   3  = inside tag, suppressing
+ *   4  = inside <a > tag name region
+ *   5  = inside <a >, after name (looking for href/download)
+ *   6  = inside the kept anchor attr name (e.g. href= seen)
+ *   7  = waiting for opening quote of kept attr
+ *   8  = inside kept anchor attr value (suppresses everything after closing quote + space)
+ *   14 = inside <img > tag name region
+ *   15 = inside <img >, after name (looking for src)
+ *   16 = inside the kept src attr name
+ *   17 = waiting for opening quote of src
+ *   18 = inside src attr value (suppresses everything after closing quote + space)
+ *
+ * Literal port of prettyhtml.com removeTagAttributes().
+ * Quirk: first allowed attribute wins — once its closing quote appears,
+ * a subsequent space transitions to state 3 (suppress), so no further
+ * attributes survive even if they would otherwise be kept.
+ */
+export function removeAllTagAttributes(text) {
+  const e = [...text];
+  const out = [];
+  let a = 1;
+  const len = e.length;
+  const EMIT_STATES = new Set([1, 2, 4, 6, 7, 8, 14, 16, 17, 18]);
+
+  for (let o = 0; o < len; o++) {
+    if (e[o] === '<') {
+      a = 2;
+      if (e[o + 1] === '!' && e[o + 2] === '-' && e[o + 3] === '-') a = 1;
+      if (e[o + 1] === 'a' && e[o + 2] === ' ') a = 4;
+      if (e[o + 1] === 'i' && e[o + 2] === 'm' && e[o + 3] === 'g' && e[o + 4] === ' ') a = 14;
+    }
+    if (e[o] === ' ') {
+      if (a === 2) a = 3;
+      if (a === 4 || a === 5) {
+        if (e[o + 1] === 'h' && e[o + 2] === 'r' && e[o + 3] === 'e' && e[o + 4] === 'f') a = 6;
+        if (e[o + 1] === 'd' && e[o + 2] === 'o' && e[o + 3] === 'w' && e[o + 4] === 'n' &&
+            e[o + 5] === 'l' && e[o + 6] === 'o' && e[o + 7] === 'a' && e[o + 8] === 'd') a = 6;
+      }
+      if (a === 14 || a === 15) {
+        if (e[o + 1] === 's' && e[o + 2] === 'r' && e[o + 3] === 'c') a = 16;
+      }
+      if (a === 4) a = 5;
+      if (a === 8) a = 3;
+      if (a === 14) a = 15;
+      if (a === 18) a = 3;
+    }
+    if (e[o] === '"' && a === 7) a = 8;
+    if (e[o] === '"' && a === 6) a = 7;
+    if (e[o] === '"' && a === 17) a = 18;
+    if (e[o] === '"' && a === 16) a = 17;
+    if (e[o] === '>' || (e[o] === '/' && e[o + 1] === '>')) a = 1;
+
+    if (EMIT_STATES.has(a)) out.push(e[o]);
+  }
+  return out.join('');
+}
 
 
 // ============================================================
@@ -680,7 +744,7 @@ const TIDY_CHECKBOX_IDS = [
   'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
-  'opt-remove-data-attrs', 'opt-unwrap-spans',
+  'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
 ];
 
 function saveTidyOptions() {
@@ -1001,6 +1065,9 @@ function init() {
       pushUndo();
       var opts = getTidyOptions();
       var result = tidy(html, opts);
+      if (document.getElementById('opt-tag-attributes').checked) {
+        result.output = removeAllTagAttributes(result.output);
+      }
       updateEditors(result.output);
       resetIndentStage();
       updateStats(html, result.output, result.tagCount, result.fixCount);
@@ -1268,4 +1335,6 @@ async function copyToClipboard(text, button) {
 // ============================================================
 // INIT
 // ============================================================
-init();
+if (typeof document !== 'undefined') {
+  init();
+}
