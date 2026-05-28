@@ -407,8 +407,7 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
 
     const lowerAttrName = attrName.toLowerCase();
     if (opts.removeStyles && (lowerAttrName === 'style' || lowerAttrName === 'valign' || lowerAttrName === 'align')) return null;
-    if (opts.removeClasses && lowerAttrName === 'class') return null;
-    if (opts.removeIds && lowerAttrName === 'id') return null;
+    if (opts.removeClassesIds && (lowerAttrName === 'class' || lowerAttrName === 'id')) return null;
     if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
     if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
 
@@ -514,8 +513,7 @@ function tidy(html, opts) {
           const remainingAttrs = (token.attributes || []).filter(attr => {
             const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
             if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return false;
-            if (opts.removeClasses && an === 'class') return false;
-            if (opts.removeIds && an === 'id') return false;
+            if (opts.removeClassesIds && (an === 'class' || an === 'id')) return false;
             if (opts.removeDataAttrs && an.startsWith('data-')) return false;
             if (opts.removeEmptyAttrs && attr.value === '' && !isBooleanAttr(an)) return false;
             return true;
@@ -666,9 +664,8 @@ function getTidyOptions() {
     trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
     newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
     removeStyles: document.getElementById('opt-remove-styles').checked,
-    removeClasses: document.getElementById('opt-remove-classes').checked,
+    removeClassesIds: document.getElementById('opt-classes-ids').checked,
     removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
-    removeIds: document.getElementById('opt-remove-ids').checked,
     unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
   };
 }
@@ -684,8 +681,8 @@ const TIDY_CHECKBOX_IDS = [
   'opt-sort-attrs', 'opt-lowercase-tags', 'opt-lowercase-attrs',
   'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
   'opt-remove-comments', 'opt-remove-empty-tags', 'opt-trim-whitespace',
-  'opt-newline-before-close', 'opt-remove-styles', 'opt-remove-classes',
-  'opt-remove-data-attrs', 'opt-remove-ids', 'opt-unwrap-spans',
+  'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
+  'opt-remove-data-attrs', 'opt-unwrap-spans',
 ];
 
 function saveTidyOptions() {
