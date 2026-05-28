@@ -700,6 +700,27 @@ export function removeAllTagAttributes(text) {
 
 
 // ============================================================
+// PLAIN TEXT — prettyhtml.com option #8
+// Strips all tags, preserves comment bodies.
+// ============================================================
+
+export function toPlainText(text) {
+  const SENTINEL = '\x00COMMENT\x00';  // NUL-bracketed sentinel — won't collide with real content
+  const comments = [];
+  // Save comments, replace each with the sentinel
+  let t = text.replace(/<!--[\s\S]*?-->/g, m => {
+    comments.push(m);
+    return SENTINEL;
+  });
+  // Strip all remaining tags
+  t = t.replace(/<[^>]*>/g, '');
+  // Restore comments in order
+  t = t.replace(new RegExp(SENTINEL, 'g'), () => comments.shift());
+  return t;
+}
+
+
+// ============================================================
 // OPTIONS — Separated into indent and tidy option readers
 // ============================================================
 
@@ -745,6 +766,7 @@ const TIDY_CHECKBOX_IDS = [
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
+  'opt-plain-text',
 ];
 
 function saveTidyOptions() {
@@ -1067,6 +1089,9 @@ function init() {
       var result = tidy(html, opts);
       if (document.getElementById('opt-tag-attributes').checked) {
         result.output = removeAllTagAttributes(result.output);
+      }
+      if (document.getElementById('opt-plain-text').checked) {
+        result.output = toPlainText(result.output);
       }
       updateEditors(result.output);
       resetIndentStage();
