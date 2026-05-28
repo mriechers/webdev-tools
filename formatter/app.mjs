@@ -721,6 +721,83 @@ export function toPlainText(text) {
 
 
 // ============================================================
+// AI WATERMARKS — prettyhtml.com option #9
+// Literal port of aiWatermarkFixer(). Order matters: char class replacements
+// run before dash/ellipsis patterns (which are effectively dead code due to
+// ordering, but preserved for byte-exact fidelity). Real NBSP comes last so
+// that &nbsp; entity is processed first.
+//
+// Mojibake character classes — each byte of the original JS source (UTF-8)
+// becomes one Unicode codepoint in the regex character class:
+//
+// Opening curly-quote class (source bytes: c3a2 e282ac c593 / c29d / c5be / c382 c2ab / c382 c2bb):
+//   U+00E2 (â) U+20AC (€) U+0153 (œ) U+009D U+017E (ž) U+00C2 (Â) U+00AB («) U+00BB (»)
+//
+// Closing curly-quote class (source bytes: c3a2 e282ac cb9c / e284a2 / c5a1 / c2b9 / c2ba):
+//   U+00E2 (â) U+20AC (€) U+02DC (˜) U+2122 (™) U+0161 (š) U+00B9 (¹) U+00BA (º)
+// ============================================================
+
+export function removeAiWatermarks(text) {
+  let t = text;
+
+  // Phase 1 — HTML entities
+  t = t.replace(/&ndash;/g, ' - ');
+  t = t.replace(/&mdash;/g, ' - ');
+  t = t.replace(/&ldquo;/g, '"');
+  t = t.replace(/&rdquo;/g, '"');
+  t = t.replace(/&lsquo;/g, "'");
+  t = t.replace(/&rsquo;/g, "'");
+  t = t.replace(/&hellip;/g, '...');
+  t = t.replace(/&nbsp;/g, ' ');
+  t = t.replace(/&#160;/g, ' ');
+
+  // Phase 2 — invisible / zero-width entities and codepoints
+  t = t.replace(/&zwj;/g, '');
+  t = t.replace(/&zwnj;/g, '');
+  t = t.replace(/&shy;/g, '');
+  t = t.replace(/&#8203;/g, '');   // ZWSP
+  t = t.replace(/&#8204;/g, '');   // ZWNJ
+  t = t.replace(/&#8205;/g, '');   // ZWJ
+  t = t.replace(/&#8288;/g, '');   // WORD JOINER
+  t = t.replace(/&#65279;/g, '');  // BOM
+  t = t.replace(/\u200B/g, '');
+  t = t.replace(/\u200C/g, '');
+  t = t.replace(/\u200D/g, '');
+  t = t.replace(/\u2060/g, '');
+  t = t.replace(/\uFEFF/g, '');
+  t = t.replace(/\u00AD/g, '');
+
+  // Phase 3 — UTF-8 mojibake (UTF-8 byte sequences misread as Windows-1252 (CP1252))
+  // Opening curly-quote mojibake: U+00E2 U+20AC U+0153 U+009D U+017E U+00C2 U+00AB U+00BB -> "
+  t = t.replace(/[â€œžÂ«»]/g, '"');
+  // Closing curly-quote mojibake: U+00E2 U+20AC U+02DC U+2122 U+0161 U+00B9 U+00BA -> '
+  // Note: U+00E2 and U+20AC already replaced above; remaining are ˜ ™ š ¹ º
+  t = t.replace(/[â€˜™š¹º]/g, "'");
+
+  // En-dash mojibake (U+00E2 U+20AC U+201C) -> '-'
+  // Em-dash mojibake (U+00E2 U+20AC U+201D) -> '--'
+  // Ellipsis mojibake (U+00E2 U+20AC U+00A6) -> '...'
+  // Two-em mojibake (U+00E2 U+00B8 U+00BA) -> '--'
+  // Three-em mojibake (U+00E2 U+00B8 U+00BB) -> '---'
+  // NOTE: these patterns never match in practice because their constituent chars
+  // (U+00E2, U+20AC) are already replaced by the char classes above. Preserved
+  // verbatim for byte-exact fidelity with the original aiWatermarkFixer().
+  t = t.replace(/â€“/g, '-');
+  t = t.replace(/â€”/g, '--');
+  t = t.replace(/â€¦/g, '...');
+  t = t.replace(/â¸º/g, '--');
+  t = t.replace(/â¸»/g, '---');
+  // Word-dash-word pattern — also dead code for the same reason; preserved for fidelity.
+  t = t.replace(/(\w)[â€”â¸ºâ¸»]+(\w)/g, '$1 $2');
+
+  // Phase 4 — real NBSP last (so &nbsp; entity was processed first in Phase 1)
+  t = t.replace(/\u00A0/g, ' ');
+
+  return t;
+}
+
+
+// ============================================================
 // OPTIONS — Separated into indent and tidy option readers
 // ============================================================
 
@@ -766,7 +843,7 @@ const TIDY_CHECKBOX_IDS = [
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
-  'opt-plain-text',
+  'opt-plain-text', 'opt-ai-watermarks',
 ];
 
 function saveTidyOptions() {
@@ -1092,6 +1169,9 @@ function init() {
       }
       if (document.getElementById('opt-plain-text').checked) {
         result.output = toPlainText(result.output);
+      }
+      if (document.getElementById('opt-ai-watermarks').checked) {
+        result.output = removeAiWatermarks(result.output);
       }
       updateEditors(result.output);
       resetIndentStage();
