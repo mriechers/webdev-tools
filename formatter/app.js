@@ -406,7 +406,7 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
     let quote = attr.quote;
 
     const lowerAttrName = attrName.toLowerCase();
-    if (opts.removeStyles && lowerAttrName === 'style') return null;
+    if (opts.removeStyles && (lowerAttrName === 'style' || lowerAttrName === 'valign' || lowerAttrName === 'align')) return null;
     if (opts.removeClasses && lowerAttrName === 'class') return null;
     if (opts.removeIds && lowerAttrName === 'id') return null;
     if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
@@ -513,7 +513,7 @@ function tidy(html, opts) {
         if (opts.unwrapSpans && lowerName === 'span') {
           const remainingAttrs = (token.attributes || []).filter(attr => {
             const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
-            if (opts.removeStyles && an === 'style') return false;
+            if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return false;
             if (opts.removeClasses && an === 'class') return false;
             if (opts.removeIds && an === 'id') return false;
             if (opts.removeDataAttrs && an.startsWith('data-')) return false;
