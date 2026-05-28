@@ -35,7 +35,7 @@ npm install && npx eslint .
 # Rebuild suggested-tools HTML from markdown source
 node scripts/build-suggested-tools.js
 
-# Tests (Node.js test runner, infrastructure not yet established)
+# Tests — Node.js built-in test runner, uses linkedom for DOMParser shim
 npm test
 ```
 
@@ -63,7 +63,7 @@ Each tool lives in its own directory with a consistent pattern:
 
 ### Current Tools
 
-- **`/formatter/`** — HTML Formatter & Tidy. Architecture: Tokenizer → two-stage indent (block-only, then all elements) → tidy operations → compress. Syntax highlighting via transparent textarea over `<pre>` with shared `--editor-*` CSS vars. Options in `localStorage` key `htmlTidy_options`.
+- **`/formatter/`** — HTML Formatter & Tidy. Pipeline: tokenize → indent (two-stage) → tidy → compress. Tidy dropdown is organized into three groups: **Formatting** (lowercase/sort/quote — our extras), **Cleaning (prettyhtml.com)** (the 10 options 1-for-1 with prettyhtml.com — Inline styles, Classes & IDs, Empty tags, Tags with 1 space, Successive spaces, Comments, Tag attributes, To plain text, AI Watermarks, Smart &nbsp;s; first 6 ON by default), and **Extras** (data-attrs, span-unwrap, etc.). Literal ports of `removeTagAttributes`, `aiWatermarkFixer`, and `smartNbsps` live in `formatter/app.mjs` (ES module). Tests in `formatter/tests/*.test.mjs` run via `npm test` (uses `linkedom` as DOMParser shim in Node). Options in `localStorage` key `htmlTidy_options`. See `planning/2026-05-27-prettyhtml-parity.md` for the algorithm snapshot / insurance documentation.
 - **`/og-image/`** — OG Image Preview. Platform specs in `platforms.json`. Optional Cloudflare Worker CORS proxy in `functions/fetch-meta.js`. Fallback proxies for CORS.
 
 ### Suggested Tools System
