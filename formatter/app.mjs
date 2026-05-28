@@ -795,7 +795,68 @@ export function removeAiWatermarks(text) {
 
   return t;
 }
+// Static environment detection — computed once, immune to user content.
+// In browsers: window exists. In Node: window is undefined (we shim DOMParser via linkedom).
+const IS_BROWSER_ENV = typeof window !== 'undefined';
 
+// ============================================================
+// SMART NBSPS — prettyhtml.com option #10
+// Two phases:
+//   A. Walk h1-h6, p, div text nodes. In each text node, if the LAST WORD
+//      is shorter than 10 chars, replace the whitespace separator before
+//      it with U+00A0 (NBSP character — not the entity).
+//   B. Globally on serialized HTML: after `.` or `<p>` + whitespace + short
+//      word + whitespace, append `&nbsp;` entity after the short word.
+//
+// Verified asymmetry against /tmp/prettyhtml.js (Phase A uses the U+00A0
+// character byte \xc2\xa0; Phase B uses the literal entity "&nbsp;").
+// ============================================================
+
+export function smartNbsps(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  function lastWordNbsp(text) {
+    const tokens = text.split(/(\s+)/);  // keep separators
+    let lastIdx = tokens.length - 1;
+    while (lastIdx >= 0 && tokens[lastIdx].trim() === '') lastIdx--;
+    if (lastIdx < 0 || tokens[lastIdx].trim().length >= 10) return text;
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      if (tokens[i].trim() === '') {
+        tokens[i] = '\u00A0';  // U+00A0 NBSP char (NOT a regular space; using escape so editor tools can't strip it)
+        break;
+      }
+    }
+    return tokens.join('');
+  }
+
+  function walk(node) {
+    node.childNodes.forEach(child => {
+      if (child.nodeType === 3 /* TEXT_NODE */) {
+        child.nodeValue = lastWordNbsp(child.nodeValue);
+      } else if (child.nodeType === 1 /* ELEMENT_NODE */) {
+        walk(child);
+      }
+    });
+  }
+
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(walk);
+  doc.querySelectorAll('p, div').forEach(walk);
+
+  // Serialize: matches the original prettyhtml.com approach (a.body.innerHTML).
+  // In browsers we use doc.body.innerHTML directly (literal port).
+  // In Node/linkedom doc.body returns null and accessing it triggers DOM re-init,
+  // so we use doc.toString() and normalize &#160; entity \u2192 U+00A0 char for consistency.
+  const serialized = IS_BROWSER_ENV
+    ? doc.body.innerHTML
+    : doc.toString().replace(/&#160;/g, '\u00a0');
+
+  // Phase B — uses the &nbsp; ENTITY (not the character)
+  return serialized.replace(
+    /(\.|<p>)(\s*)(\w+)(\s+)/g,
+    (m, prefix, ws1, word) => word.length < 7 ? `${prefix}${ws1}${word}&nbsp;` : m
+  );
+}
 
 // ============================================================
 // OPTIONS — Separated into indent and tidy option readers
@@ -843,7 +904,7 @@ const TIDY_CHECKBOX_IDS = [
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
-  'opt-plain-text', 'opt-ai-watermarks',
+  'opt-plain-text', 'opt-ai-watermarks', 'opt-smart-nbsps',
 ];
 
 function saveTidyOptions() {
@@ -1172,6 +1233,9 @@ function init() {
       }
       if (document.getElementById('opt-ai-watermarks').checked) {
         result.output = removeAiWatermarks(result.output);
+      }
+      if (document.getElementById('opt-smart-nbsps').checked) {
+        result.output = smartNbsps(result.output);
       }
       updateEditors(result.output);
       resetIndentStage();
