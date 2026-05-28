@@ -479,32 +479,29 @@ function tidy(html, opts) {
         const lowerName = token.tagName.toLowerCase();
         tagCount++;
 
-        // Remove empty tags
-        if (opts.removeEmptyTags) {
-          const nextToken = tokens[i + 1];
-          const canRemove = !VOID_ELEMENTS.has(lowerName) &&
-              !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
+        const nextToken = tokens[i + 1];
+        const canRemove = !VOID_ELEMENTS.has(lowerName) &&
+            !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
 
-          // Case 1: <tag></tag> — directly empty
-          if (canRemove && nextToken &&
-              nextToken.type === TokenType.CLOSE_TAG &&
-              nextToken.tagName.toLowerCase() === lowerName) {
+        // Case 1: <tag></tag> — directly empty
+        if (canRemove && opts.removeEmptyTags && nextToken &&
+            nextToken.type === TokenType.CLOSE_TAG &&
+            nextToken.tagName.toLowerCase() === lowerName) {
+          fixCount++;
+          i++;
+          break;
+        }
+
+        // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
+        if (canRemove && opts.removeOneSpaceTags && nextToken && nextToken.type === TokenType.TEXT) {
+          const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
+          const closeToken = tokens[i + 2];
+          if (!stripped &&
+              closeToken && closeToken.type === TokenType.CLOSE_TAG &&
+              closeToken.tagName.toLowerCase() === lowerName) {
             fixCount++;
-            i++;
+            i += 2;
             break;
-          }
-
-          // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
-          if (canRemove && nextToken && nextToken.type === TokenType.TEXT) {
-            const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
-            const closeToken = tokens[i + 2];
-            if (!stripped &&
-                closeToken && closeToken.type === TokenType.CLOSE_TAG &&
-                closeToken.tagName.toLowerCase() === lowerName) {
-              fixCount++;
-              i += 2;
-              break;
-            }
           }
         }
 
@@ -660,7 +657,8 @@ function getTidyOptions() {
     fixSelfClosing: document.getElementById('opt-fix-self-closing').checked,
     quoteAttrs: document.getElementById('opt-unquoted-to-quoted').checked,
     removeComments: document.getElementById('opt-remove-comments').checked,
-    removeEmptyTags: document.getElementById('opt-remove-empty-tags').checked,
+    removeEmptyTags: document.getElementById('opt-empty-tags').checked,
+    removeOneSpaceTags: document.getElementById('opt-one-space-tags').checked,
     trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
     newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
     removeStyles: document.getElementById('opt-remove-styles').checked,
@@ -680,7 +678,7 @@ const TIDY_OPTIONS_KEY = 'htmlTidy_options';
 const TIDY_CHECKBOX_IDS = [
   'opt-sort-attrs', 'opt-lowercase-tags', 'opt-lowercase-attrs',
   'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
-  'opt-remove-comments', 'opt-remove-empty-tags', 'opt-trim-whitespace',
+  'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans',
 ];
