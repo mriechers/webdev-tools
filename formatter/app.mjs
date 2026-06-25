@@ -56,6 +56,18 @@ const INLINE_ELEMENTS = new Set([
 ]);
 
 /**
+ * Block-level elements — used by normalizeStrayBreaks to tell a structural
+ * <br> (between/around blocks, or inside an empty block) from a content <br>
+ * (a real line break inside a block that has text).
+ */
+const BLOCK_ELEMENTS = new Set([
+  'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li',
+  'blockquote', 'section', 'article', 'header', 'footer', 'main', 'aside',
+  'nav', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tfoot', 'tr',
+  'td', 'th', 'dl', 'dt', 'dd', 'form', 'fieldset', 'address', 'pre',
+]);
+
+/**
  * Parse an HTML attribute string into an array of {name, value, quote} objects.
  */
 function parseAttributes(attrString) {
@@ -856,6 +868,83 @@ export function smartNbsps(html) {
     /(\.|<p>)(\s*)(\w+)(\s+)/g,
     (m, prefix, ws1, word) => word.length < 7 ? `${prefix}${ws1}${word}&nbsp;` : m
   );
+}
+
+/**
+ * Normalize stray <br> residue (e.g. from Google Docs paste).
+ *
+ * - A <br> sitting at the body level between/around block elements is treated
+ *   as a structural spacer: a maximal run collapses to one <p>&nbsp;</p>.
+ * - A <br> inside a block that has no direct text (e.g. <p><br></p>) is dropped.
+ * - A <br> inside a block that has real text is kept (genuine line break).
+ *
+ * The <p>&nbsp;</p>/<p></p> output is consumed by the default-ON "Tags with one
+ * space" and "Empty tags" cleaners in tidy(), so stray breaks vanish entirely.
+ * Pure string transform — no DOM round-trip.
+ */
+export function normalizeStrayBreaks(html) {
+  const tokens = tokenize(html);
+  const n = tokens.length;
+
+  const isBr = (t) =>
+    t.type === TokenType.SELF_CLOSING_TAG && t.tagName.toLowerCase() === 'br';
+  const isBlockOpen = (t) =>
+    t.type === TokenType.OPEN_TAG && BLOCK_ELEMENTS.has(t.tagName.toLowerCase());
+  const isBlockClose = (t) =>
+    t.type === TokenType.CLOSE_TAG && BLOCK_ELEMENTS.has(t.tagName.toLowerCase());
+
+  // Pass A: for every token record its immediate enclosing block-open index
+  // (-1 = body level), and whether that block holds direct non-blank text.
+  const parentBlock = new Array(n).fill(-1);
+  const hasDirectText = {};
+  const stack = [];
+  for (let i = 0; i < n; i++) {
+    const t = tokens[i];
+    const top = stack.length ? stack[stack.length - 1] : -1;
+    parentBlock[i] = top;
+    if (isBlockOpen(t)) {
+      stack.push(i);
+      hasDirectText[i] = false;
+    } else if (isBlockClose(t)) {
+      if (stack.length &&
+          tokens[stack[stack.length - 1]].tagName.toLowerCase() === t.tagName.toLowerCase()) {
+        stack.pop();
+      }
+    } else if (t.type === TokenType.TEXT && top !== -1) {
+      const stripped = t.content.replace(/&nbsp;/g, '').replace(/ /g, '').trim();
+      if (stripped) hasDirectText[top] = true;
+    }
+  }
+
+  // Pass B: rebuild, rewriting stray <br>s.
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    const t = tokens[i];
+    if (isBr(t)) {
+      const pIdx = parentBlock[i];
+      if (pIdx === -1) {
+        // Body-level run -> single spacer. Skip whitespace-only text between brs.
+        let last = i;
+        let j = i + 1;
+        while (j < n) {
+          const tj = tokens[j];
+          if (isBr(tj) && parentBlock[j] === -1) { last = j; j++; }
+          else if (tj.type === TokenType.TEXT && parentBlock[j] === -1 &&
+                   tj.content.trim() === '') { j++; }
+          else break;
+        }
+        out.push('<p>&nbsp;</p>');
+        i = last + 1;
+        continue;
+      }
+      if (!hasDirectText[pIdx]) { i++; continue; } // empty block -> drop the <br>
+      // else: real line break inside text — keep it
+    }
+    out.push(t.raw);
+    i++;
+  }
+  return out.join('');
 }
 
 // ============================================================
