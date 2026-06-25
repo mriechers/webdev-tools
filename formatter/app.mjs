@@ -993,7 +993,7 @@ const TIDY_CHECKBOX_IDS = [
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
   'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
-  'opt-plain-text', 'opt-ai-watermarks', 'opt-smart-nbsps',
+  'opt-plain-text', 'opt-ai-watermarks', 'opt-smart-nbsps', 'opt-stray-breaks',
 ];
 
 function saveTidyOptions() {
@@ -1313,7 +1313,10 @@ function init() {
     try {
       pushUndo();
       var opts = getTidyOptions();
-      var result = tidy(html, opts);
+      var normalized = document.getElementById('opt-stray-breaks').checked
+        ? normalizeStrayBreaks(html)
+        : html;
+      var result = tidy(normalized, opts);
       if (document.getElementById('opt-tag-attributes').checked) {
         result.output = removeAllTagAttributes(result.output);
       }
