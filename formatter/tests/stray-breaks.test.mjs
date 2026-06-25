@@ -45,6 +45,18 @@ test('drops <br> in a paragraph holding only &nbsp;', () => {
   assert.equal(normalizeStrayBreaks('<p>&nbsp;<br></p>'), '<p>&nbsp;</p>');
 });
 
+test('drops <br> in a paragraph holding only numeric &#160;', () => {
+  assert.equal(normalizeStrayBreaks('<p>&#160;<br></p>'), '<p>&#160;</p>');
+});
+
+// --- Run-collapse boundary: interior body-level text splits a run ---
+test('interior body-level text splits a <br> run into separate spacers', () => {
+  assert.equal(
+    normalizeStrayBreaks('<p>a</p><br>x<br><p>b</p>'),
+    '<p>a</p><p>&nbsp;</p>x<p>&nbsp;</p><p>b</p>'
+  );
+});
+
 // --- Case 3: in-text <br> must be preserved ---
 test('keeps a line-break between two words', () => {
   assert.equal(

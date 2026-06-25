@@ -911,7 +911,7 @@ export function normalizeStrayBreaks(html) {
         stack.pop();
       }
     } else if (t.type === TokenType.TEXT && top !== -1) {
-      const stripped = t.content.replace(/&nbsp;/g, '').replace(/ /g, '').trim();
+      const stripped = t.content.replace(/&nbsp;|&#160;/g, '').trim();
       if (stripped) hasDirectText[top] = true;
     }
   }
