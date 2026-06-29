@@ -56,6 +56,18 @@ const INLINE_ELEMENTS = new Set([
 ]);
 
 /**
+ * Block-level elements — used by normalizeStrayBreaks to tell a structural
+ * <br> (between/around blocks, or inside an empty block) from a content <br>
+ * (a real line break inside a block that has text).
+ */
+const BLOCK_ELEMENTS = new Set([
+  'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li',
+  'blockquote', 'section', 'article', 'header', 'footer', 'main', 'aside',
+  'nav', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tfoot', 'tr',
+  'td', 'th', 'dl', 'dt', 'dd', 'form', 'fieldset', 'address', 'pre',
+]);
+
+/**
  * Parse an HTML attribute string into an array of {name, value, quote} objects.
  */
 function parseAttributes(attrString) {
@@ -406,9 +418,8 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
     let quote = attr.quote;
 
     const lowerAttrName = attrName.toLowerCase();
-    if (opts.removeStyles && lowerAttrName === 'style') return null;
-    if (opts.removeClasses && lowerAttrName === 'class') return null;
-    if (opts.removeIds && lowerAttrName === 'id') return null;
+    if (opts.removeStyles && (lowerAttrName === 'style' || lowerAttrName === 'valign' || lowerAttrName === 'align')) return null;
+    if (opts.removeClassesIds && (lowerAttrName === 'class' || lowerAttrName === 'id')) return null;
     if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
     if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
 
@@ -480,32 +491,29 @@ function tidy(html, opts) {
         const lowerName = token.tagName.toLowerCase();
         tagCount++;
 
-        // Remove empty tags
-        if (opts.removeEmptyTags) {
-          const nextToken = tokens[i + 1];
-          const canRemove = !VOID_ELEMENTS.has(lowerName) &&
-              !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
+        const nextToken = tokens[i + 1];
+        const canRemove = !VOID_ELEMENTS.has(lowerName) &&
+            !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
 
-          // Case 1: <tag></tag> — directly empty
-          if (canRemove && nextToken &&
-              nextToken.type === TokenType.CLOSE_TAG &&
-              nextToken.tagName.toLowerCase() === lowerName) {
+        // Case 1: <tag></tag> — directly empty
+        if (canRemove && opts.removeEmptyTags && nextToken &&
+            nextToken.type === TokenType.CLOSE_TAG &&
+            nextToken.tagName.toLowerCase() === lowerName) {
+          fixCount++;
+          i++;
+          break;
+        }
+
+        // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
+        if (canRemove && opts.removeOneSpaceTags && nextToken && nextToken.type === TokenType.TEXT) {
+          const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
+          const closeToken = tokens[i + 2];
+          if (!stripped &&
+              closeToken && closeToken.type === TokenType.CLOSE_TAG &&
+              closeToken.tagName.toLowerCase() === lowerName) {
             fixCount++;
-            i++;
+            i += 2;
             break;
-          }
-
-          // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
-          if (canRemove && nextToken && nextToken.type === TokenType.TEXT) {
-            const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
-            const closeToken = tokens[i + 2];
-            if (!stripped &&
-                closeToken && closeToken.type === TokenType.CLOSE_TAG &&
-                closeToken.tagName.toLowerCase() === lowerName) {
-              fixCount++;
-              i += 2;
-              break;
-            }
           }
         }
 
@@ -513,9 +521,8 @@ function tidy(html, opts) {
         if (opts.unwrapSpans && lowerName === 'span') {
           const remainingAttrs = (token.attributes || []).filter(attr => {
             const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
-            if (opts.removeStyles && an === 'style') return false;
-            if (opts.removeClasses && an === 'class') return false;
-            if (opts.removeIds && an === 'id') return false;
+            if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return false;
+            if (opts.removeClassesIds && (an === 'class' || an === 'id')) return false;
             if (opts.removeDataAttrs && an.startsWith('data-')) return false;
             if (opts.removeEmptyAttrs && attr.value === '' && !isBooleanAttr(an)) return false;
             return true;
@@ -636,9 +643,309 @@ function compress(html) {
   return parts.join('');
 }
 
-// Keep backward compat alias
-const minify = compress;
+// ============================================================
+// TAG ATTRIBUTES — prettyhtml.com option #7
+// Literal port of removeTagAttributes() — byte-level state machine.
+// Preserves: <a href|download>, <img src>. Strips everything else.
+// ============================================================
 
+/**
+ * State legend:
+ *   1  = outside tag (emitting)
+ *   2  = inside tag name (until first space)
+ *   3  = inside tag, suppressing
+ *   4  = inside <a > tag name region
+ *   5  = inside <a >, after name (looking for href/download)
+ *   6  = inside the kept anchor attr name (e.g. href= seen)
+ *   7  = waiting for opening quote of kept attr
+ *   8  = inside kept anchor attr value (suppresses everything after closing quote + space)
+ *   14 = inside <img > tag name region
+ *   15 = inside <img >, after name (looking for src)
+ *   16 = inside the kept src attr name
+ *   17 = waiting for opening quote of src
+ *   18 = inside src attr value (suppresses everything after closing quote + space)
+ *
+ * Literal port of prettyhtml.com removeTagAttributes().
+ * Quirk: first allowed attribute wins — once its closing quote appears,
+ * a subsequent space transitions to state 3 (suppress), so no further
+ * attributes survive even if they would otherwise be kept.
+ */
+export function removeAllTagAttributes(text) {
+  const e = [...text];
+  const out = [];
+  let a = 1;
+  const len = e.length;
+  const EMIT_STATES = new Set([1, 2, 4, 6, 7, 8, 14, 16, 17, 18]);
+
+  for (let o = 0; o < len; o++) {
+    if (e[o] === '<') {
+      a = 2;
+      if (e[o + 1] === '!' && e[o + 2] === '-' && e[o + 3] === '-') a = 1;
+      if (e[o + 1] === 'a' && e[o + 2] === ' ') a = 4;
+      if (e[o + 1] === 'i' && e[o + 2] === 'm' && e[o + 3] === 'g' && e[o + 4] === ' ') a = 14;
+    }
+    if (e[o] === ' ') {
+      if (a === 2) a = 3;
+      if (a === 4 || a === 5) {
+        if (e[o + 1] === 'h' && e[o + 2] === 'r' && e[o + 3] === 'e' && e[o + 4] === 'f') a = 6;
+        if (e[o + 1] === 'd' && e[o + 2] === 'o' && e[o + 3] === 'w' && e[o + 4] === 'n' &&
+            e[o + 5] === 'l' && e[o + 6] === 'o' && e[o + 7] === 'a' && e[o + 8] === 'd') a = 6;
+      }
+      if (a === 14 || a === 15) {
+        if (e[o + 1] === 's' && e[o + 2] === 'r' && e[o + 3] === 'c') a = 16;
+      }
+      if (a === 4) a = 5;
+      if (a === 8) a = 3;
+      if (a === 14) a = 15;
+      if (a === 18) a = 3;
+    }
+    if (e[o] === '"' && a === 7) a = 8;
+    if (e[o] === '"' && a === 6) a = 7;
+    if (e[o] === '"' && a === 17) a = 18;
+    if (e[o] === '"' && a === 16) a = 17;
+    if (e[o] === '>' || (e[o] === '/' && e[o + 1] === '>')) a = 1;
+
+    if (EMIT_STATES.has(a)) out.push(e[o]);
+  }
+  return out.join('');
+}
+
+
+// ============================================================
+// PLAIN TEXT — prettyhtml.com option #8
+// Strips all tags, preserves comment bodies.
+// ============================================================
+
+export function toPlainText(text) {
+  const SENTINEL = '\x00COMMENT\x00';  // NUL-bracketed sentinel — won't collide with real content
+  const comments = [];
+  // Save comments, replace each with the sentinel
+  let t = text.replace(/<!--[\s\S]*?-->/g, m => {
+    comments.push(m);
+    return SENTINEL;
+  });
+  // Strip all remaining tags
+  t = t.replace(/<[^>]*>/g, '');
+  // Restore comments in order
+  t = t.replace(new RegExp(SENTINEL, 'g'), () => comments.shift());
+  return t;
+}
+
+
+// ============================================================
+// AI WATERMARKS — prettyhtml.com option #9
+// Literal port of aiWatermarkFixer(). Order matters: char class replacements
+// run before dash/ellipsis patterns (which are effectively dead code due to
+// ordering, but preserved for byte-exact fidelity). Real NBSP comes last so
+// that &nbsp; entity is processed first.
+//
+// Mojibake character classes — each byte of the original JS source (UTF-8)
+// becomes one Unicode codepoint in the regex character class:
+//
+// Opening curly-quote class (source bytes: c3a2 e282ac c593 / c29d / c5be / c382 c2ab / c382 c2bb):
+//   U+00E2 (â) U+20AC (€) U+0153 (œ) U+009D U+017E (ž) U+00C2 (Â) U+00AB («) U+00BB (»)
+//
+// Closing curly-quote class (source bytes: c3a2 e282ac cb9c / e284a2 / c5a1 / c2b9 / c2ba):
+//   U+00E2 (â) U+20AC (€) U+02DC (˜) U+2122 (™) U+0161 (š) U+00B9 (¹) U+00BA (º)
+// ============================================================
+
+export function removeAiWatermarks(text) {
+  let t = text;
+
+  // Phase 1 — HTML entities
+  t = t.replace(/&ndash;/g, ' - ');
+  t = t.replace(/&mdash;/g, ' - ');
+  t = t.replace(/&ldquo;/g, '"');
+  t = t.replace(/&rdquo;/g, '"');
+  t = t.replace(/&lsquo;/g, "'");
+  t = t.replace(/&rsquo;/g, "'");
+  t = t.replace(/&hellip;/g, '...');
+  t = t.replace(/&nbsp;/g, ' ');
+  t = t.replace(/&#160;/g, ' ');
+
+  // Phase 2 — invisible / zero-width entities and codepoints
+  t = t.replace(/&zwj;/g, '');
+  t = t.replace(/&zwnj;/g, '');
+  t = t.replace(/&shy;/g, '');
+  t = t.replace(/&#8203;/g, '');   // ZWSP
+  t = t.replace(/&#8204;/g, '');   // ZWNJ
+  t = t.replace(/&#8205;/g, '');   // ZWJ
+  t = t.replace(/&#8288;/g, '');   // WORD JOINER
+  t = t.replace(/&#65279;/g, '');  // BOM
+  t = t.replace(/\u200B/g, '');
+  t = t.replace(/\u200C/g, '');
+  t = t.replace(/\u200D/g, '');
+  t = t.replace(/\u2060/g, '');
+  t = t.replace(/\uFEFF/g, '');
+  t = t.replace(/\u00AD/g, '');
+
+  // Phase 3 — UTF-8 mojibake (UTF-8 byte sequences misread as Windows-1252 (CP1252))
+  // Opening curly-quote mojibake: U+00E2 U+20AC U+0153 U+009D U+017E U+00C2 U+00AB U+00BB -> "
+  t = t.replace(/[â€œžÂ«»]/g, '"');
+  // Closing curly-quote mojibake: U+00E2 U+20AC U+02DC U+2122 U+0161 U+00B9 U+00BA -> '
+  // Note: U+00E2 and U+20AC already replaced above; remaining are ˜ ™ š ¹ º
+  t = t.replace(/[â€˜™š¹º]/g, "'");
+
+  // En-dash mojibake (U+00E2 U+20AC U+201C) -> '-'
+  // Em-dash mojibake (U+00E2 U+20AC U+201D) -> '--'
+  // Ellipsis mojibake (U+00E2 U+20AC U+00A6) -> '...'
+  // Two-em mojibake (U+00E2 U+00B8 U+00BA) -> '--'
+  // Three-em mojibake (U+00E2 U+00B8 U+00BB) -> '---'
+  // NOTE: these patterns never match in practice because their constituent chars
+  // (U+00E2, U+20AC) are already replaced by the char classes above. Preserved
+  // verbatim for byte-exact fidelity with the original aiWatermarkFixer().
+  t = t.replace(/â€“/g, '-');
+  t = t.replace(/â€”/g, '--');
+  t = t.replace(/â€¦/g, '...');
+  t = t.replace(/â¸º/g, '--');
+  t = t.replace(/â¸»/g, '---');
+  // Word-dash-word pattern — also dead code for the same reason; preserved for fidelity.
+  t = t.replace(/(\w)[â€”â¸ºâ¸»]+(\w)/g, '$1 $2');
+
+  // Phase 4 — real NBSP last (so &nbsp; entity was processed first in Phase 1)
+  t = t.replace(/\u00A0/g, ' ');
+
+  return t;
+}
+// Static environment detection — computed once, immune to user content.
+// In browsers: window exists. In Node: window is undefined (we shim DOMParser via linkedom).
+const IS_BROWSER_ENV = typeof window !== 'undefined';
+
+// ============================================================
+// SMART NBSPS — prettyhtml.com option #10
+// Two phases:
+//   A. Walk h1-h6, p, div text nodes. In each text node, if the LAST WORD
+//      is shorter than 10 chars, replace the whitespace separator before
+//      it with U+00A0 (NBSP character — not the entity).
+//   B. Globally on serialized HTML: after `.` or `<p>` + whitespace + short
+//      word + whitespace, append `&nbsp;` entity after the short word.
+//
+// Verified asymmetry against /tmp/prettyhtml.js (Phase A uses the U+00A0
+// character byte \xc2\xa0; Phase B uses the literal entity "&nbsp;").
+// ============================================================
+
+export function smartNbsps(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  function lastWordNbsp(text) {
+    const tokens = text.split(/(\s+)/);  // keep separators
+    let lastIdx = tokens.length - 1;
+    while (lastIdx >= 0 && tokens[lastIdx].trim() === '') lastIdx--;
+    if (lastIdx < 0 || tokens[lastIdx].trim().length >= 10) return text;
+    for (let i = lastIdx - 1; i >= 0; i--) {
+      if (tokens[i].trim() === '') {
+        tokens[i] = '\u00A0';  // U+00A0 NBSP char (NOT a regular space; using escape so editor tools can't strip it)
+        break;
+      }
+    }
+    return tokens.join('');
+  }
+
+  function walk(node) {
+    node.childNodes.forEach(child => {
+      if (child.nodeType === 3 /* TEXT_NODE */) {
+        child.nodeValue = lastWordNbsp(child.nodeValue);
+      } else if (child.nodeType === 1 /* ELEMENT_NODE */) {
+        walk(child);
+      }
+    });
+  }
+
+  doc.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(walk);
+  doc.querySelectorAll('p, div').forEach(walk);
+
+  // Serialize: matches the original prettyhtml.com approach (a.body.innerHTML).
+  // In browsers we use doc.body.innerHTML directly (literal port).
+  // In Node/linkedom doc.body returns null and accessing it triggers DOM re-init,
+  // so we use doc.toString() and normalize &#160; entity \u2192 U+00A0 char for consistency.
+  const serialized = IS_BROWSER_ENV
+    ? doc.body.innerHTML
+    : doc.toString().replace(/&#160;/g, '\u00a0');
+
+  // Phase B — uses the &nbsp; ENTITY (not the character)
+  return serialized.replace(
+    /(\.|<p>)(\s*)(\w+)(\s+)/g,
+    (m, prefix, ws1, word) => word.length < 7 ? `${prefix}${ws1}${word}&nbsp;` : m
+  );
+}
+
+/**
+ * Normalize stray <br> residue (e.g. from Google Docs paste).
+ *
+ * - A <br> sitting at the body level between/around block elements is treated
+ *   as a structural spacer: a maximal run collapses to one <p>&nbsp;</p>.
+ * - A <br> inside a block that has no direct text (e.g. <p><br></p>) is dropped.
+ * - A <br> inside a block that has real text is kept (genuine line break).
+ *
+ * The <p>&nbsp;</p>/<p></p> output is consumed by the default-ON "Tags with one
+ * space" and "Empty tags" cleaners in tidy(), so stray breaks vanish entirely.
+ * Pure string transform — no DOM round-trip.
+ */
+export function normalizeStrayBreaks(html) {
+  const tokens = tokenize(html);
+  const n = tokens.length;
+
+  const isBr = (t) =>
+    t.type === TokenType.SELF_CLOSING_TAG && t.tagName.toLowerCase() === 'br';
+  const isBlockOpen = (t) =>
+    t.type === TokenType.OPEN_TAG && BLOCK_ELEMENTS.has(t.tagName.toLowerCase());
+  const isBlockClose = (t) =>
+    t.type === TokenType.CLOSE_TAG && BLOCK_ELEMENTS.has(t.tagName.toLowerCase());
+
+  // Pass A: for every token record its immediate enclosing block-open index
+  // (-1 = body level), and whether that block holds direct non-blank text.
+  const parentBlock = new Array(n).fill(-1);
+  const hasDirectText = {};
+  const stack = [];
+  for (let i = 0; i < n; i++) {
+    const t = tokens[i];
+    const top = stack.length ? stack[stack.length - 1] : -1;
+    parentBlock[i] = top;
+    if (isBlockOpen(t)) {
+      stack.push(i);
+      hasDirectText[i] = false;
+    } else if (isBlockClose(t)) {
+      if (stack.length &&
+          tokens[stack[stack.length - 1]].tagName.toLowerCase() === t.tagName.toLowerCase()) {
+        stack.pop();
+      }
+    } else if (t.type === TokenType.TEXT && top !== -1) {
+      const stripped = t.content.replace(/&nbsp;|&#160;/g, '').trim();
+      if (stripped) hasDirectText[top] = true;
+    }
+  }
+
+  // Pass B: rebuild, rewriting stray <br>s.
+  const out = [];
+  let i = 0;
+  while (i < n) {
+    const t = tokens[i];
+    if (isBr(t)) {
+      const pIdx = parentBlock[i];
+      if (pIdx === -1) {
+        // Body-level run -> single spacer. Skip whitespace-only text between brs.
+        let last = i;
+        let j = i + 1;
+        while (j < n) {
+          const tj = tokens[j];
+          if (isBr(tj) && parentBlock[j] === -1) { last = j; j++; }
+          else if (tj.type === TokenType.TEXT && parentBlock[j] === -1 &&
+                   tj.content.trim() === '') { j++; }
+          else break;
+        }
+        out.push('<p>&nbsp;</p>');
+        i = last + 1;
+        continue;
+      }
+      if (!hasDirectText[pIdx]) { i++; continue; } // empty block -> drop the <br>
+      // else: real line break inside text — keep it
+    }
+    out.push(t.raw);
+    i++;
+  }
+  return out.join('');
+}
 
 // ============================================================
 // OPTIONS — Separated into indent and tidy option readers
@@ -662,13 +969,13 @@ function getTidyOptions() {
     fixSelfClosing: document.getElementById('opt-fix-self-closing').checked,
     quoteAttrs: document.getElementById('opt-unquoted-to-quoted').checked,
     removeComments: document.getElementById('opt-remove-comments').checked,
-    removeEmptyTags: document.getElementById('opt-remove-empty-tags').checked,
+    removeEmptyTags: document.getElementById('opt-empty-tags').checked,
+    removeOneSpaceTags: document.getElementById('opt-one-space-tags').checked,
     trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
     newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
     removeStyles: document.getElementById('opt-remove-styles').checked,
-    removeClasses: document.getElementById('opt-remove-classes').checked,
+    removeClassesIds: document.getElementById('opt-classes-ids').checked,
     removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
-    removeIds: document.getElementById('opt-remove-ids').checked,
     unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
   };
 }
@@ -683,9 +990,10 @@ const TIDY_OPTIONS_KEY = 'htmlTidy_options';
 const TIDY_CHECKBOX_IDS = [
   'opt-sort-attrs', 'opt-lowercase-tags', 'opt-lowercase-attrs',
   'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
-  'opt-remove-comments', 'opt-remove-empty-tags', 'opt-trim-whitespace',
-  'opt-newline-before-close', 'opt-remove-styles', 'opt-remove-classes',
-  'opt-remove-data-attrs', 'opt-remove-ids', 'opt-unwrap-spans',
+  'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
+  'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
+  'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
+  'opt-plain-text', 'opt-ai-watermarks', 'opt-smart-nbsps', 'opt-stray-breaks',
 ];
 
 function saveTidyOptions() {
@@ -1005,7 +1313,22 @@ function init() {
     try {
       pushUndo();
       var opts = getTidyOptions();
-      var result = tidy(html, opts);
+      var normalized = document.getElementById('opt-stray-breaks').checked
+        ? normalizeStrayBreaks(html)
+        : html;
+      var result = tidy(normalized, opts);
+      if (document.getElementById('opt-tag-attributes').checked) {
+        result.output = removeAllTagAttributes(result.output);
+      }
+      if (document.getElementById('opt-plain-text').checked) {
+        result.output = toPlainText(result.output);
+      }
+      if (document.getElementById('opt-ai-watermarks').checked) {
+        result.output = removeAiWatermarks(result.output);
+      }
+      if (document.getElementById('opt-smart-nbsps').checked) {
+        result.output = smartNbsps(result.output);
+      }
       updateEditors(result.output);
       resetIndentStage();
       updateStats(html, result.output, result.tagCount, result.fixCount);
@@ -1273,4 +1596,6 @@ async function copyToClipboard(text, button) {
 // ============================================================
 // INIT
 // ============================================================
-init();
+if (typeof document !== 'undefined') {
+  init();
+}

@@ -725,3 +725,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================
+   TIDY DROPDOWN SECTION TITLES
+   Small uppercase labels separating the three groups.
+   ============================================================ */
+.tidy-section-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+}

@@ -140,7 +140,9 @@
 
           <!-- Tidy dropdown panel -->
           <div id="tidy-dropdown" class="tidy-dropdown" hidden>
+            <!-- ===== Group 1: Formatting (our extras, no prettyhtml.com counterpart) ===== -->
             <div class="tidy-dropdown-section">
+              <div class="tidy-section-title">Formatting</div>
               <label class="option-checkbox">
                 <input type="checkbox" id="opt-lowercase-tags" checked>
                 <span>Lowercase tags</span>
@@ -169,39 +171,63 @@
 
             <div class="tidy-dropdown-divider"></div>
 
+            <!-- ===== Group 2: Cleaning — prettyhtml.com options in order ===== -->
             <div class="tidy-dropdown-section">
+              <div class="tidy-section-title">Cleaning (prettyhtml.com)</div>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-remove-comments">
-                <span>Remove comments</span>
+                <input type="checkbox" id="opt-remove-styles" checked>
+                <span>Inline styles</span>
               </label>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-remove-empty-tags" checked>
-                <span>Remove empty tags</span>
+                <input type="checkbox" id="opt-classes-ids" checked>
+                <span>Classes &amp; IDs</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-empty-tags" checked>
+                <span>Empty tags</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-one-space-tags" checked>
+                <span>Tags with 1 space</span>
               </label>
               <label class="option-checkbox">
                 <input type="checkbox" id="opt-trim-whitespace" checked>
-                <span>Trim extra whitespace</span>
+                <span>Successive spaces</span>
               </label>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-newline-before-close">
-                <span>Newline before closing &gt;</span>
+                <input type="checkbox" id="opt-remove-comments" checked>
+                <span>Comments</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-tag-attributes">
+                <span>Tag attributes</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-plain-text">
+                <span>To plain text</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-ai-watermarks">
+                <span>AI Watermarks</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-smart-nbsps">
+                <span>Smart &amp;nbsp;s</span>
               </label>
             </div>
 
             <div class="tidy-dropdown-divider"></div>
 
+            <!-- ===== Group 3: Extras (our extras, no prettyhtml.com counterpart) ===== -->
             <div class="tidy-dropdown-section">
+              <div class="tidy-section-title">Extras</div>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-remove-styles" checked>
-                <span>Remove inline styles</span>
+                <input type="checkbox" id="opt-stray-breaks" checked>
+                <span title="Removes &lt;br&gt; between or around block elements and inside otherwise-empty blocks; keeps line breaks inside text.">Strip stray line breaks</span>
               </label>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-remove-classes">
-                <span>Remove classes</span>
-              </label>
-              <label class="option-checkbox">
-                <input type="checkbox" id="opt-remove-ids">
-                <span>Remove id attributes</span>
+                <input type="checkbox" id="opt-newline-before-close">
+                <span>Newline before closing &gt;</span>
               </label>
               <label class="option-checkbox">
                 <input type="checkbox" id="opt-remove-data-attrs">
@@ -339,6 +365,6 @@
   <shell-footer></shell-footer>
 
   <script src="../shared/shell.js" type="module"></script>
-  <script src="app.js"></script>
+  <script src="app.mjs" type="module"></script>
 </body>
 </html>

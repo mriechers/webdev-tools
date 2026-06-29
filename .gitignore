@@ -20,3 +20,6 @@ package-lock.json
 
 # Logs
 *.log
+
+# Non-Claude agent worktrees (created per CLAUDE.md isolation rules)
+.worktrees/
