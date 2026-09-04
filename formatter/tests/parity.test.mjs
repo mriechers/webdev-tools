@@ -111,3 +111,38 @@ test('with the Extra off, one pass leaves the outer tag — as theirs does', () 
   const opts = withOpts({ nestedEmpties: false, blockNewlines: false });
   assert.equal(runTidyPipeline('<div><p></p></div>', opts).output, '<div></div>');
 });
+
+// --- tidy() passes whitespace through untouched ---
+//
+// Whitespace collapsing used to live in tidy()'s TEXT case as \s+ -> " ". It moved
+// into runTidyPipeline's unconditional pre/post passes, because on prettyhtml.com
+// that work is done by the passes and not by any checkbox (divergence C). These
+// pin the behavior change at the unit level: every direct tidy() assertion above
+// uses whitespace-free input, so nothing else would catch a regression here.
+
+const passthroughOpts = withOpts({ blockNewlines: false });
+
+test('tidy leaves a run of spaces in text alone', () => {
+  assert.equal(tidy('<p>a     b</p>', passthroughOpts).output, '<p>a     b</p>');
+});
+
+test('tidy leaves newlines in text alone', () => {
+  assert.equal(tidy('<p>a\n\nb</p>', passthroughOpts).output, '<p>a\n\nb</p>');
+});
+
+test('tidy does not collapse whitespace even with option 5 on', () => {
+  // The option is nbsp-only; it must not reach literal whitespace.
+  assert.equal(tidy('<p>a  b</p>', withOpts({ trimWhitespace: true, blockNewlines: false })).output,
+    '<p>a  b</p>');
+});
+
+test('tidy leaves whitespace between tags alone', () => {
+  assert.equal(tidy('<div>  <span>x</span>  </div>',
+    withOpts({ blockNewlines: false, unwrapSpans: false })).output,
+    '<div>  <span>x</span>  </div>');
+});
+
+test('the pipeline, not tidy, is what collapses those runs', () => {
+  assert.equal(runTidyPipeline('<p>a     b</p>', passthroughOpts).output, '<p>a b</p>');
+  assert.equal(runTidyPipeline('<p>a\n\nb</p>', passthroughOpts).output, '<p>a\nb</p>');
+});
