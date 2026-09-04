@@ -226,8 +226,24 @@
                 <span title="Removes &lt;br&gt; between or around block elements and inside otherwise-empty blocks; keeps line breaks inside text.">Strip stray line breaks</span>
               </label>
               <label class="option-checkbox">
-                <input type="checkbox" id="opt-newline-before-close">
-                <span>Newline before closing &gt;</span>
+                <input type="checkbox" id="opt-block-newlines" checked>
+                <span title="Puts each block-level element on its own line, matching what prettyhtml.com's editor layer does before it cleans.">Block elements on their own lines</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-nested-empties" checked>
+                <span title="Repeats empty-tag removal until nothing changes, so &lt;div&gt;&lt;p&gt;&lt;/p&gt;&lt;/div&gt; clears completely.">Remove nested empty tags</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-docs-residue" checked>
+                <span title="Strips Google Docs paste residue: role=&quot;presentation&quot;, aria-level, dir=&quot;ltr&quot;, and the docs-internal-guid &lt;b&gt; wrapper.">Remove Google Docs residue</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-strip-scripts" checked>
+                <span title="Removes &lt;script&gt; and &lt;style&gt; blocks entirely.">Remove scripts &amp; style blocks</span>
+              </label>
+              <label class="option-checkbox">
+                <input type="checkbox" id="opt-straighten-quotes">
+                <span title="Turns curly quotes, dashes and ellipses in text into their plain ASCII equivalents. Off by default — smart punctuation in prose is usually intentional.">Straighten smart punctuation</span>
               </label>
               <label class="option-checkbox">
                 <input type="checkbox" id="opt-remove-data-attrs">

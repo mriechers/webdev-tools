@@ -70,7 +70,8 @@ Beautify, format, and clean up messy or minified HTML instantly.
 └── formatter/                  # HTML Formatter & Tidy
     ├── index.html
     ├── styles.css
-    └── app.js
+    ├── app.mjs                 # ES module — pipeline, cleaners, DOM wiring
+    └── tests/                  # node --test, linkedom DOMParser shim
 ```
 
 Each tool is self-contained in its own directory with its own `index.html`, making it easy to develop, test, and deploy independently.

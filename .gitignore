@@ -23,3 +23,7 @@ package-lock.json
 
 # Non-Claude agent worktrees (created per CLAUDE.md isolation rules)
 .worktrees/
+
+# Raw prettyhtml.com capture — third-party copyrighted JS/CSS/HTML, local reference only.
+# Clean-room behavior specs live in planning/*.md; the raw files never get committed.
+planning/captures/
