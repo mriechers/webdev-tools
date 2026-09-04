@@ -1,0 +1,194 @@
+{
+  "_meta": {
+    "captured": "2026-09-03; option dispatch re-verified live 2026-09-04",
+    "source": "prettyhtml.com, driven live in-browser via chrome-devtools MCP",
+    "technique": "window.text = input; <primitive>(); read window.text — for primitive fixtures. tinymce.get('vizualisEditor').setContent(input); convertText(); read window.text — for pipeline fixtures.",
+    "legal": "Black-box input/output observations only. No third-party source is reproduced here. The raw capture lives in planning/captures/ and is gitignored.",
+    "optDefaults": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "14": 0
+    },
+    "layerNote": "'layer1' is the TinyMCE round-trip alone (setContent then getContent, before any cleaner runs). 'output' is the full convertText pipeline. Our port has no layer 1, so a fixture whose work happens in layer1 must be matched by an Extras compensation, not by a layer-2 cleaner.",
+    "oursNote": "'output' is what prettyhtml.com produces. Where we deliberately differ, 'ours' records our own expected output and 'oursNote' says why. A fixture with no 'ours' must match theirs byte for byte at shipped defaults."
+  },
+  "primitives": [
+    {
+      "id": "empty-nested-single-pass",
+      "divergence": "B",
+      "fn": "uresTagotTorul",
+      "input": "<div><p></p></div>",
+      "output": "<div></div>",
+      "note": "Single linear pass. The outer div is not revisited after the inner pair is deleted."
+    },
+    {
+      "id": "empty-nested-called-twice",
+      "divergence": "B",
+      "fn": "uresTagotTorul x2",
+      "input": "<div><p></p></div>",
+      "output": "",
+      "note": "Proves cascading is a real behavior change, not a no-op. convertText calls it once."
+    },
+    {
+      "id": "empty-nested-deeper",
+      "divergence": "B",
+      "fn": "uresTagotTorul",
+      "input": "<section><div><p></p></div></section>",
+      "output": "<section><div></div></section>",
+      "note": "Only the innermost pair is removed per pass."
+    },
+    {
+      "id": "empty-mismatched-names",
+      "fn": "uresTagotTorul",
+      "input": "<b></i>",
+      "output": "",
+      "note": "Tag names are never compared. Deliberate divergence G — our canRemove is stricter."
+    },
+    {
+      "id": "empty-mismatched-block",
+      "fn": "uresTagotTorul",
+      "input": "<div></span>",
+      "output": "",
+      "note": "Same quirk, block-level."
+    },
+    {
+      "id": "one-space-named-entity",
+      "divergence": "H",
+      "fn": "csakEgyNbspTagotTorul",
+      "input": "<p>&nbsp;</p>",
+      "output": "",
+      "note": "Named entity matched char-by-char."
+    },
+    {
+      "id": "one-space-numeric-entity",
+      "divergence": "H",
+      "fn": "csakEgyNbspTagotTorul",
+      "input": "<p>&#160;</p>",
+      "output": "<p>&#160;</p>",
+      "note": "Numeric form is NOT matched. Our handling both forms is an improvement, not parity."
+    },
+    {
+      "id": "opt5-collapses-nbsp",
+      "divergence": "C",
+      "fn": "option 5 replacement set",
+      "input": "a&nbsp;&nbsp;b",
+      "output": "a b",
+      "note": "Option 5 is entirely about non-breaking-space entities."
+    },
+    {
+      "id": "opt5-ignores-whitespace",
+      "divergence": "C",
+      "fn": "option 5 replacement set",
+      "input": "a     b",
+      "output": "a     b",
+      "note": "Option 5 does NOT touch literal whitespace runs. Ours does the opposite. Literal runs are collapsed by the unconditional pre/post-pass instead."
+    },
+    {
+      "id": "plaintext-substitutes-space",
+      "divergence": "D",
+      "fn": "option 8 replacement set",
+      "input": "a<br/>b",
+      "output": "a b",
+      "note": "One space per removed tag. We used to delete the tag outright, yielding 'ab'; fixed alongside this fixture, and plain-text.test.mjs now asserts the space-substituting behavior recorded here."
+    },
+    {
+      "id": "helyettesit-is-fixpoint",
+      "fn": "helyettesit('  ', ' ')",
+      "input": "a          b",
+      "output": "a b",
+      "note": "String-pattern replace looped to idempotence, so a run of any length collapses."
+    }
+  ],
+  "pipeline": [
+    {
+      "id": "curly-quoted-attribute",
+      "divergence": "N",
+      "input": "<p class=“hero lede”>Hi</p>",
+      "layer1": "<p class=\"&ldquo;hero\">Hi</p>",
+      "output": "<p>Hi</p>",
+      "note": "TinyMCE parses the curly-quoted value as unquoted, terminating at the space; 'lede”' is dropped entirely and the opening curly quote is entity-encoded into the value. Option 2 (default ON) then removes the mangled class, so their user-visible output is clean. Ours invents a bare attribute named 'lede”' that no cleaner matches, so it survives into output. Target for our fix: match this output."
+    },
+    {
+      "id": "curly-quoted-attribute-with-gt",
+      "divergence": "N",
+      "input": "<p class=“a > b”>Hi</p>",
+      "layer1": "<p class=\"&ldquo;a\">b&rdquo;&gt;Hi</p>",
+      "output": "<p>b&rdquo;&gt;Hi</p>",
+      "note": "A '>' inside a curly-quoted value truncates the tag and leaks the remainder into text content. Both implementations corrupt this; theirs at least yields well-formed HTML.",
+      "ours": "<p>Hi</p>",
+      "oursNote": "DELIBERATE (N). We accept curly quotes as attribute delimiters, so the value stays intact and the classes/IDs option removes it cleanly. Theirs truncates the tag at the '>' inside the value and leaks the remainder into text content."
+    },
+    {
+      "id": "straight-quoted-attribute-control",
+      "input": "<p class=\"hero lede\">Hi</p>",
+      "layer1": "<p class=\"hero lede\">Hi</p>",
+      "output": "<p>Hi</p>",
+      "note": "Control for the two above."
+    },
+    {
+      "id": "curly-punctuation-in-prose",
+      "input": "<p>It’s a “big” day — really.</p>",
+      "layer1": "<p>It&rsquo;s a &ldquo;big&rdquo; day &mdash; really.</p>",
+      "output": "<p>It&rsquo;s a &ldquo;big&rdquo; day &mdash; really.</p>",
+      "note": "Layer 1 entity-encodes real smart punctuation (entity_encoding:'named'); layer 2 leaves it alone with option 9 off. Prose typography is preserved, which is why our N fix must touch attribute delimiters only.",
+      "ours": "<p>It’s a “big” day — really.</p>",
+      "oursNote": "DELIBERATE (layer 1). Their TinyMCE round-trip runs with entity_encoding:'named', so real smart punctuation comes back as entities. We have no round-trip and keep the literal characters, which are valid UTF-8 HTML. The opt-straighten-quotes Extra (default OFF) converts them to ASCII for anyone who wants that."
+    },
+    {
+      "id": "google-docs-paste",
+      "divergence": "issue #22",
+      "input": "<b style=\"font-weight:normal\" id=\"docs-internal-guid-abc123\"><p dir=\"ltr\" role=\"presentation\"><span style=\"font-size:11pt;font-family:Arial\">Hello</span></p><h2 dir=\"ltr\" aria-level=\"2\"><span style=\"font-weight:700\">Head</span></h2></b>",
+      "layer1": "<p dir=\"ltr\"><span style=\"font-size: 11pt; font-family: Arial;\">Hello</span></p>\n<h2 dir=\"ltr\"><span style=\"font-weight: bold;\">Head</span></h2>",
+      "output": "<p dir=\"ltr\"><span>Hello</span></p>\n<h2 dir=\"ltr\"><span>Head</span></h2>",
+      "note": "ANSWERS ISSUE #22. dir=\"ltr\" SURVIVES on prettyhtml.com — so removing it is better-than-parity, as the plan predicted. Note also that layer 1 (not any cleaner) is what strips role=\"presentation\", aria-level, and the docs-internal-guid <b> wrapper. Our port has no layer 1, so it must handle all of that explicitly. Synthetic sample, structurally faithful to real Docs clipboard HTML; replace with a genuine paste when one is available.",
+      "synthetic": true,
+      "ours": "<p>Hello</p>\n<h2>Head</h2>",
+      "oursNote": "DELIBERATE. Two default-ON Extras go past their output: opt-docs-residue strips dir=\"ltr\" (which survives on their site), and opt-unwrap-spans drops the <span> once option 1 has emptied it of attributes. Closes issue #22."
+    },
+    {
+      "id": "script-block",
+      "input": "<p>a</p><script>var x=1;</script><p>b</p>",
+      "layer1": "<p>a</p>\n<p>b</p>",
+      "output": "<p>a</p>\n<p>b</p>",
+      "note": "TinyMCE removes script blocks at layer 1, before the unconditional layer-2 strip ever runs."
+    },
+    {
+      "id": "style-block",
+      "input": "<p>a</p><style>.x{color:red}</style><p>b</p>",
+      "layer1": "<p>a</p>\n<p>b</p>",
+      "output": "<p>a</p>\n<p>b</p>",
+      "note": "Same as script blocks."
+    },
+    {
+      "id": "inter-tag-gap-join",
+      "divergence": "F",
+      "input": "<div> <p>x</p> </div>",
+      "layer1": "<div>\n<p>x</p>\n</div>",
+      "output": "<div>\n<p>x</p>\n</div>",
+      "note": "Layer 1 has already converted the inter-tag spaces to newlines, so option 3's '> <' join has nothing to do here."
+    },
+    {
+      "id": "empty-nested-end-to-end",
+      "divergence": "B",
+      "input": "<div><p></p></div>",
+      "layer1": "<div>&nbsp;</div>",
+      "output": "",
+      "note": "CRITICAL. End-to-end output is empty, but NOT via cascading empty-tag removal. Layer 1 turns the empty <p> into &nbsp;, and option 4 removes the result as a one-space tag. Compare the primitive fixture above, which returns <div></div>."
+    },
+    {
+      "id": "nbsp-spacer-paragraph",
+      "input": "<p>a</p>\n<p>&nbsp;</p>\n<p>b</p>",
+      "layer1": "<p>a</p>\n<p>&nbsp;</p>\n<p>b</p>",
+      "output": "<p>a</p>\n<p>b</p>",
+      "note": "Option 4 removes the spacer paragraph."
+    }
+  ]
+}

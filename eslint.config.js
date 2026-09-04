@@ -42,6 +42,15 @@ module.exports = [
     },
   },
   {
+    files: ['formatter/tests/**/*.mjs'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     files: ['og-image/functions/**/*.js'],
     languageOptions: {
       sourceType: 'module',
@@ -51,6 +60,8 @@ module.exports = [
     },
   },
   {
-    ignores: ['node_modules/'],
+    // planning/captures/ holds the raw third-party prettyhtml.com capture. It is
+    // gitignored reference material, not our source — never lint or ship it.
+    ignores: ['node_modules/', 'planning/captures/'],
   },
 ];

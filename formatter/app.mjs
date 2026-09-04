@@ -68,24 +68,65 @@ const BLOCK_ELEMENTS = new Set([
 ]);
 
 /**
+ * Curly quotes accepted as attribute delimiters.
+ *
+ * Word processors (Google Docs especially) autocorrect straight quotes to curly
+ * ones even when the text is HTML *source*, so pasted markup routinely arrives as
+ * `class=“hero lede”`. Treating those as delimiters is a robustness fix, not a
+ * parity concern: prettyhtml.com's TinyMCE mis-parses the same input (it reads the
+ * value as unquoted and truncates at the first space) and only looks clean because
+ * its classes/IDs option then deletes the wreckage. Ours has no such backstop, so
+ * without this the invented attribute survives into the output.
+ *
+ * Each opener maps to the set of characters that may close it — a pair is accepted
+ * in either orientation, since autocorrect sometimes emits two openers or two
+ * closers when it guesses the word boundary wrong.
+ *
+ * Known limitation, deliberate: a value that mixes delimiter styles
+ * (`class=“hero lede"`) is NOT recognized and still falls to the bare-value path.
+ * Autocorrect converts both quotes of a pair, so this shape has not been observed
+ * in real input — and the obvious fix costs more than it buys. Letting a straight
+ * quote close a curly-opened value would truncate `alt=“He said "hi" to me”`, and
+ * letting a curly close a straight-opened one would truncate
+ * `alt="He said “hi” to me"` — quoted prose inside an attribute, which is both
+ * common and exactly what a word processor produces. Those two cases parse
+ * correctly today and are covered by tests; keep it that way unless a real
+ * mixed-delimiter sample turns up.
+ */
+const QUOTE_CLOSERS = {
+  '"': '"',
+  "'": "'",
+  '\u201C': '\u201D\u201C',
+  '\u201D': '\u201D\u201C',
+  '\u2018': '\u2019\u2018',
+  '\u2019': '\u2019\u2018',
+};
+
+/**
  * Parse an HTML attribute string into an array of {name, value, quote} objects.
  */
-function parseAttributes(attrString) {
+export function parseAttributes(attrString) {
   const attrs = [];
   if (!attrString || !attrString.trim()) return attrs;
 
-  // Regex matches: name="value", name='value', name=value, or bare name
-  const re = /([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|(\S+)))?/g;
+  // Regex matches: name="value", name='value', name=“value”, name=‘value’,
+  // name=value, or bare name. Curly-delimited values are normalized to straight
+  // quotes here so every downstream rebuild path emits valid HTML.
+  const re = /([^\s=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|[\u201C\u201D]([^\u201C\u201D]*)[\u201C\u201D]|[\u2018\u2019]([^\u2018\u2019]*)[\u2018\u2019]|(\S+)))?/g;
   let match;
   while ((match = re.exec(attrString)) !== null) {
     const name = match[1];
     const value = match[2] !== undefined ? match[2]
                 : match[3] !== undefined ? match[3]
                 : match[4] !== undefined ? match[4]
+                : match[5] !== undefined ? match[5]
+                : match[6] !== undefined ? match[6]
                 : null;
     const quote = match[2] !== undefined ? '"'
                : match[3] !== undefined ? "'"
-               : match[4] !== undefined ? ''
+               : match[4] !== undefined ? '"'
+               : match[5] !== undefined ? "'"
+               : match[6] !== undefined ? ''
                : null;
     attrs.push({ name, value, quote });
   }
@@ -96,7 +137,7 @@ function parseAttributes(attrString) {
  * Tokenize an HTML string into an array of tokens.
  * Each token has: { type, raw, tagName?, attributes?, content? }
  */
-function tokenize(html) {
+export function tokenize(html) {
   const tokens = [];
   let pos = 0;
   const len = html.length;
@@ -224,9 +265,14 @@ function findTagEnd(html, pos) {
   const len = html.length;
   while (i < len) {
     const ch = html[i];
-    if (ch === '"' || ch === "'") {
-      // Skip quoted attribute value
-      const closeQuote = html.indexOf(ch, i + 1);
+    const closers = QUOTE_CLOSERS[ch];
+    if (closers) {
+      // Skip a quoted attribute value so a '>' inside it doesn't truncate the tag.
+      // Curly delimiters close on either member of their pair (see QUOTE_CLOSERS).
+      let closeQuote = -1;
+      for (let j = i + 1; j < len; j++) {
+        if (closers.includes(html[j])) { closeQuote = j; break; }
+      }
       if (closeQuote === -1) return -1;
       i = closeQuote + 1;
     } else if (ch === '>') {
@@ -284,7 +330,7 @@ function rebuildTag(token) {
  * @param {number} stage - 1 = block elements only, 2 = all elements
  * @returns {string} Indented HTML
  */
-function indent(html, opts, stage) {
+export function indent(html, opts, stage) {
   const tokens = tokenize(html);
   const lines = [];
   let indentLevel = 0;
@@ -407,6 +453,32 @@ function isBooleanAttr(name) {
 }
 
 /**
+ * True if an attribute is removed by the current options.
+ *
+ * Single source of truth for two call sites that must agree: buildTidyTag, which
+ * decides what to emit, and the unwrapSpans check, which decides whether a <span>
+ * has anything left worth keeping. They were duplicated, and adding the Google
+ * Docs residue rules to one and not the other left a span whose only attribute
+ * was residue un-unwrapped while that same attribute got stripped. At shipped
+ * defaults the opt-nested-empties fixpoint hid it by catching the span on a
+ * second pass; with that Extra off, a stray <span> survived.
+ */
+function isDroppedAttr(name, value, opts) {
+  const an = name.toLowerCase();
+  if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return true;
+  if (opts.removeClassesIds && (an === 'class' || an === 'id')) return true;
+  if (opts.removeDataAttrs && an.startsWith('data-')) return true;
+  if (opts.docsResidue) {
+    const lowerValue = (value || '').toLowerCase();
+    if (an === 'role' && lowerValue === 'presentation') return true;
+    if (an === 'aria-level') return true;
+    if (an === 'dir' && lowerValue === 'ltr') return true;
+  }
+  if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(an)) return true;
+  return false;
+}
+
+/**
  * Build a tidied tag string, applying cleaning options to attributes.
  */
 function buildTidyTag(tagName, attrs, selfClose, opts) {
@@ -417,11 +489,10 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
     let value = attr.value;
     let quote = attr.quote;
 
-    const lowerAttrName = attrName.toLowerCase();
-    if (opts.removeStyles && (lowerAttrName === 'style' || lowerAttrName === 'valign' || lowerAttrName === 'align')) return null;
-    if (opts.removeClassesIds && (lowerAttrName === 'class' || lowerAttrName === 'id')) return null;
-    if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
-    if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
+    // Google Docs residue is part of this: TinyMCE drops role/aria-level for
+    // prettyhtml.com at layer 1; we have no layer 1, so the option covers them
+    // explicitly. dir="ltr" survives on their site — deliberately better than parity.
+    if (isDroppedAttr(attrName, value, opts)) return null;
 
     if (opts.quoteAttrs && value !== null && quote !== '"' && quote !== "'") {
       quote = '"';
@@ -453,12 +524,16 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
  * Tidy tokenized HTML — applies cleaning without changing whitespace.
  * Returns { output, fixCount, tagCount }.
  */
-function tidy(html, opts) {
+export function tidy(html, opts) {
   const tokens = tokenize(html);
   const parts = [];
   let fixCount = 0;
   let tagCount = 0;
   let unwrappedSpanDepth = 0;
+  // One entry per open <b>: true if it was unwrapped as a Google Docs container.
+  // A plain stack rather than a depth counter, so a real nested <b> keeps its
+  // own closing tag instead of consuming the wrapper's.
+  const boldStack = [];
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -495,7 +570,7 @@ function tidy(html, opts) {
         const canRemove = !VOID_ELEMENTS.has(lowerName) &&
             !['script', 'style', 'iframe', 'canvas', 'video', 'audio', 'td', 'th'].includes(lowerName);
 
-        // Case 1: <tag></tag> — directly empty
+        // Case 1: <tag></tag> — directly empty. prettyhtml option 3 (uresTagotTorul).
         if (canRemove && opts.removeEmptyTags && nextToken &&
             nextToken.type === TokenType.CLOSE_TAG &&
             nextToken.tagName.toLowerCase() === lowerName) {
@@ -504,12 +579,15 @@ function tidy(html, opts) {
           break;
         }
 
-        // Case 2: <tag>&nbsp;</tag> — contains only &nbsp; / whitespace
-        if (canRemove && opts.removeOneSpaceTags && nextToken && nextToken.type === TokenType.TEXT) {
-          const stripped = nextToken.content.replace(/&nbsp;/g, '').trim();
+        // Case 2: <tag>\n</tag> — a single newline. Also option 3, via
+        // csakEnteresTagotTorul; it used to be lumped in with the one-space
+        // option below, which put it behind the wrong checkbox (divergence F).
+        // Whitespace runs have already been collapsed by the pre-pass, and a
+        // space-only tag reaches Case 1 through option 3's "> <" join.
+        if (canRemove && opts.removeEmptyTags && nextToken &&
+            nextToken.type === TokenType.TEXT && nextToken.content === '\n') {
           const closeToken = tokens[i + 2];
-          if (!stripped &&
-              closeToken && closeToken.type === TokenType.CLOSE_TAG &&
+          if (closeToken && closeToken.type === TokenType.CLOSE_TAG &&
               closeToken.tagName.toLowerCase() === lowerName) {
             fixCount++;
             i += 2;
@@ -517,16 +595,37 @@ function tidy(html, opts) {
           }
         }
 
+        // Case 3: <tag>&nbsp;</tag> — option 4 (csakEgyNbspTagotTorul). Theirs
+        // matches the named entity only; we accept the numeric spelling too
+        // (divergence H, a deliberate improvement).
+        if (canRemove && opts.removeOneSpaceTags && nextToken && nextToken.type === TokenType.TEXT &&
+            NBSP_SPELLINGS.includes(nextToken.content)) {
+          const closeToken = tokens[i + 2];
+          if (closeToken && closeToken.type === TokenType.CLOSE_TAG &&
+              closeToken.tagName.toLowerCase() === lowerName) {
+            fixCount++;
+            i += 2;
+            break;
+          }
+        }
+
+        // Google Docs wraps a whole paste in <b id="docs-internal-guid-…"> with
+        // font-weight:normal. It is a transparent container, not bold — unwrap it.
+        if (lowerName === 'b') {
+          const idAttr = (token.attributes || []).find(a => a.name.toLowerCase() === 'id');
+          const isDocsWrapper = Boolean(opts.docsResidue && idAttr && idAttr.value &&
+            idAttr.value.startsWith('docs-internal-guid'));
+          boldStack.push(isDocsWrapper);
+          if (isDocsWrapper) {
+            fixCount++;
+            break;
+          }
+        }
+
         // Unwrap empty spans
         if (opts.unwrapSpans && lowerName === 'span') {
-          const remainingAttrs = (token.attributes || []).filter(attr => {
-            const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
-            if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return false;
-            if (opts.removeClassesIds && (an === 'class' || an === 'id')) return false;
-            if (opts.removeDataAttrs && an.startsWith('data-')) return false;
-            if (opts.removeEmptyAttrs && attr.value === '' && !isBooleanAttr(an)) return false;
-            return true;
-          });
+          const remainingAttrs = (token.attributes || [])
+            .filter(attr => !isDroppedAttr(attr.name, attr.value, opts));
           if (remainingAttrs.length === 0) {
             fixCount++;
             unwrappedSpanDepth++;
@@ -552,6 +651,10 @@ function tidy(html, opts) {
           break;
         }
 
+        if (lowerName === 'b' && boldStack.length > 0 && boldStack.pop()) {
+          break;
+        }
+
         parts.push(`</${closeTagName}>`);
         break;
       }
@@ -563,22 +666,9 @@ function tidy(html, opts) {
       }
 
       case TokenType.TEXT: {
-        if (token.preserveWhitespace) {
-          parts.push(token.content);
-          break;
-        }
-
-        let text = token.content;
-        if (opts.trimWhitespace) {
-          text = text.replace(/\s+/g, ' ');
-          // Only fully trim if the result is all whitespace
-          if (!text.trim()) {
-            // Preserve a single space between inline elements
-            parts.push(' ');
-            break;
-          }
-        }
-        parts.push(text);
+        // Pass through untouched. Whitespace normalization belongs to the
+        // pipeline's pre/post-passes, not to any option (divergence C).
+        parts.push(token.content);
         break;
       }
     }
@@ -594,7 +684,7 @@ function tidy(html, opts) {
 // COMPRESS — Strip all unnecessary whitespace (formerly minify)
 // ============================================================
 
-function compress(html) {
+export function compress(html) {
   const tokens = tokenize(html);
   const parts = [];
 
@@ -719,13 +809,18 @@ export function removeAllTagAttributes(text) {
 export function toPlainText(text) {
   const SENTINEL = '\x00COMMENT\x00';  // NUL-bracketed sentinel — won't collide with real content
   const comments = [];
-  // Save comments, replace each with the sentinel
+  // Save comments, replace each with the sentinel. Theirs sentinels only the
+  // "<!--" opener, which leaves the comment with no "<" for the tag machine to
+  // latch onto — same effect, stated more directly.
   let t = text.replace(/<!--[\s\S]*?-->/g, m => {
     comments.push(m);
     return SENTINEL;
   });
-  // Strip all remaining tags
-  t = t.replace(/<[^>]*>/g, '');
+  // Replace each remaining tag with a single space. Theirs collapses every tag
+  // to "<>" and then substitutes " ", so "a<br/>b" becomes "a b", not "ab"
+  // (divergence D). The doubled spaces this leaves are collapsed by the
+  // pipeline's post-pass.
+  t = t.replace(/<[^>]*>/g, ' ');
   // Restore comments in order
   t = t.replace(new RegExp(SENTINEL, 'g'), () => comments.shift());
   return t;
@@ -939,6 +1034,18 @@ export function normalizeStrayBreaks(html) {
         continue;
       }
       if (!hasDirectText[pIdx]) { i++; continue; } // empty block -> drop the <br>
+
+      // A <br> with nothing but whitespace between it and its block's closing
+      // tag is filler, not a line break — it renders nothing. TinyMCE drops
+      // these for prettyhtml.com at layer 1; without that layer we do it here.
+      let k = i + 1;
+      while (k < n && tokens[k].type === TokenType.TEXT &&
+             parentBlock[k] === pIdx && tokens[k].content.trim() === '') k++;
+      if (k < n && isBlockClose(tokens[k]) &&
+          tokens[k].tagName.toLowerCase() === tokens[pIdx].tagName.toLowerCase()) {
+        i++;
+        continue;
+      }
       // else: real line break inside text — keep it
     }
     out.push(t.raw);
@@ -946,6 +1053,265 @@ export function normalizeStrayBreaks(html) {
   }
   return out.join('');
 }
+
+// ============================================================
+// TIDY PIPELINE — the order and scaffolding of prettyhtml.com convertText()
+//
+// Their engine is two layers. Layer 1 is a TinyMCE round-trip that normalizes
+// the DOM before any cleaner runs; layer 2 is the string cleaners behind the
+// ten checkboxes. We have no layer 1, so a few things TinyMCE does for them are
+// handled here by default-ON Extras options instead (normalizeStrayBreaks,
+// opt-nested-empties, opt-docs-residue). Reasoning about their cleaners in
+// isolation gives the wrong answer about what the site actually outputs — see
+// planning/2026-09-03-prettyhtml-complete-capture.md.
+//
+// Deliberate divergences, kept because ours is better:
+//   E — options 1/2 parse attributes structurally; theirs does double-quote-only
+//       string surgery, so style='x' or class=“x” slip past it.
+//   G — canRemove exempts td/th/script/style/media; theirs deletes <td></td> and
+//       does not even check that tag names match (<b></i> gets removed).
+//   H — one-space-tag removal accepts &#160; as well as &nbsp;.
+//   N — curly quotes are accepted as attribute delimiters (see QUOTE_CLOSERS).
+//
+// Known cost of parity: the whitespace passes are string-level and run outside
+// the tokenizer, so like theirs they do not preserve <pre>/<textarea> indentation.
+// ============================================================
+
+/** Both spellings of a non-breaking space entity. Theirs only knows the first. */
+const NBSP_SPELLINGS = ['&nbsp;', '&#160;'];
+
+/** Guard against a replacement that can never reach a fixed point. */
+const REPLACE_STABLE_LIMIT = 1000;
+
+/**
+ * Replace every occurrence of a literal substring, repeating until the text
+ * stops changing. Mirrors their `helyettesit(from, to)`, whose looping is what
+ * makes single-pair replacements like "  " -> " " collapse runs of any length.
+ */
+export function replaceUntilStable(text, from, to) {
+  if (!from) return text;
+  // A replacement whose output still contains its own pattern can never reach a
+  // fixed point, and each round makes the string longer — looping would exhaust
+  // memory, not just spin. One pass is the only sane reading of that request.
+  if (to.includes(from)) return text.split(from).join(to);
+
+  let out = text;
+  for (let i = 0; i < REPLACE_STABLE_LIMIT; i++) {
+    const next = out.split(from).join(to);
+    if (next === out) return out;
+    out = next;
+  }
+  return out;
+}
+
+/** Unconditional pre-pass, run before any option is consulted. */
+function normalizeWhitespacePrepass(text) {
+  let t = text;
+  t = replaceUntilStable(t, '\t', '');
+  t = replaceUntilStable(t, '  ', ' ');
+  t = replaceUntilStable(t, ' \n', '\n');
+  t = replaceUntilStable(t, '\t\n', '\n');   // dead after the tab strip; kept for fidelity
+  t = replaceUntilStable(t, '\n\n', '\n');
+  t = replaceUntilStable(t, '  ', ' ');
+  return t;
+}
+
+/**
+ * Post-pass, re-run until a full round changes nothing. Theirs sums the
+ * replacement counts and loops while the total is positive, which is the same
+ * condition expressed differently.
+ */
+function postPassLoop(text) {
+  let t = text;
+  for (let i = 0; i < REPLACE_STABLE_LIMIT; i++) {
+    const before = t;
+    t = replaceUntilStable(t, '  ', ' ');
+    t = replaceUntilStable(t, ' >', '>');
+    t = replaceUntilStable(t, '\t', '');
+    t = replaceUntilStable(t, '  ', ' ');
+    t = replaceUntilStable(t, '&nbsp;\n', '\n');
+    t = replaceUntilStable(t, ' \n', '\n');
+    t = replaceUntilStable(t, '\n\n', '\n');
+    if (t === before) return t;
+  }
+  return t;
+}
+
+/** Final cleanup, after the attribute/watermark/nbsp options have run. */
+function finalCleanup(text) {
+  let t = text;
+  t = replaceUntilStable(t, ' \n', '\n');
+  t = replaceUntilStable(t, '\t\n', '\n');
+  t = replaceUntilStable(t, '\n\n', '\n');
+  t = replaceUntilStable(t, '  ', ' ');
+  return t;
+}
+
+/**
+ * Remove <script> and <style> blocks. Unconditional on their site (with a popup
+ * announcing it); here it rides a visible Extras checkbox so it can be turned off.
+ * Theirs deletes between the markers and then removes the "<script</script>"
+ * residue, which composes to deleting the whole block.
+ */
+function stripScriptStyleBlocks(text) {
+  return text
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '');
+}
+
+/**
+ * Option 5, "Successive spaces". Despite the label it only touches non-breaking
+ * space entities — literal whitespace runs are collapsed by the unconditional
+ * passes instead. Measured live: "a&nbsp;b" survives, "a&nbsp;&nbsp;b" -> "a b".
+ */
+function collapseNbspRuns(text) {
+  let t = text;
+  for (const a of NBSP_SPELLINGS) {
+    for (const b of NBSP_SPELLINGS) t = replaceUntilStable(t, a + b, ' ');
+  }
+  for (const a of NBSP_SPELLINGS) {
+    t = replaceUntilStable(t, a + ' ', ' ');
+    t = replaceUntilStable(t, ' ' + a, ' ');
+  }
+  return t;
+}
+
+/**
+ * The inter-tag gap normalizations that belong to options 4 and 3 respectively.
+ * They run on the raw string, before tokenizing, because their whole job is to
+ * turn "<p> </p>" into the "<p></p>" that the empty-tag machine can then see.
+ */
+function normalizeTagGaps(text, opts) {
+  let t = text;
+  if (opts.removeOneSpaceTags) {
+    t = replaceUntilStable(t, '> &nbsp;<', '>&nbsp;<');
+    t = replaceUntilStable(t, '>&nbsp; <', '>&nbsp;<');
+  }
+  if (opts.removeEmptyTags) {
+    t = replaceUntilStable(t, '> <', '><');
+    t = replaceUntilStable(t, '> \n', '>\n');
+  }
+  return t;
+}
+
+/**
+ * Straighten literal curly punctuation in text content — the character-level
+ * counterpart of option 9, which only knows the entity and mojibake spellings.
+ * Default OFF: curly quotes in prose are legitimate typography, and this is
+ * deliberately kept out of option 9 itself so the ten stay byte-faithful.
+ */
+export function straightenSmartPunctuation(text) {
+  return text
+    .replace(/\u2013/g, ' - ')
+    .replace(/\u2014/g, ' - ')
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\u2026/g, '...');
+}
+
+/**
+ * Put every block-level element on its own line, with no indentation.
+ *
+ * This is what TinyMCE's getContent() does for prettyhtml.com at layer 1, and
+ * it accounts for most of the visible difference between their output and ours:
+ * they hand back line-delimited blocks, we handed back one long line. Measured
+ * live — a block's open tag starts a line, its close tag starts a line only when
+ * the block has block children, and inline content stays put. Expressed as two
+ * boundary rules that produce exactly that, letting the post-pass tidy up the
+ * blank lines and stray spaces they leave behind.
+ *
+ * Option 3's "> \n" normalization and newline-only-tag machine exist because their
+ * layer 1 emits these newlines before any cleaner runs. Ours emits them after, so
+ * those two fire on already-formatted input rather than on our own output.
+ *
+ * Deliberately NOT replicated from TinyMCE: <b> to <strong> rewriting, implied
+ * <tbody> insertion, wrapping loose text in <p>, and alt="" injection. Those are
+ * editor semantics, not cleanup (divergence K).
+ */
+export function separateBlockElements(html) {
+  const tokens = tokenize(html);
+  const parts = [];
+
+  // True if the output so far ends a line — skipping empty pushes.
+  const atLineStart = () => {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (parts[i] === '') continue;
+      return parts[i].endsWith('\n');
+    }
+    return true;
+  };
+
+  for (const token of tokens) {
+    const isBlock = token.tagName && BLOCK_ELEMENTS.has(token.tagName.toLowerCase());
+
+    if (isBlock && token.type === TokenType.OPEN_TAG) {
+      if (!atLineStart()) parts.push('\n');
+      parts.push(token.raw);
+    } else if (isBlock && token.type === TokenType.CLOSE_TAG) {
+      parts.push(token.raw, '\n');
+    } else {
+      parts.push(token.raw);
+    }
+  }
+
+  return parts.join('').replace(/\n+$/, '');
+}
+
+/**
+ * Run the full Tidy pipeline, ordered to match convertText().
+ * @param {string} html - Raw HTML string
+ * @param {object} opts - Option flags (see getTidyOptions)
+ * @returns {{output: string, fixCount: number, tagCount: number}}
+ */
+export function runTidyPipeline(html, opts) {
+  let text = opts.strayBreaks ? normalizeStrayBreaks(html) : html;
+
+  text = normalizeWhitespacePrepass(text);
+
+  if (opts.stripScripts) text = stripScriptStyleBlocks(text);
+
+  // Option 8 runs first on their site, before every other option.
+  if (opts.plainText) text = toPlainText(text);
+
+  // Options 1 and 2 are applied structurally inside tidy(); option 5 is a
+  // string pass, and their dispatch runs it between the two.
+  if (opts.trimWhitespace) text = collapseNbspRuns(text);
+
+  text = normalizeTagGaps(text, opts);
+  let result = tidy(text, opts);
+  const tagCount = result.tagCount;
+  let fixCount = result.fixCount;
+
+  // Their option dispatch runs once, so a nested empty pair leaves the outer tag
+  // behind. Layer 1 hides that for them: TinyMCE rewrites <div><p></p></div> as
+  // <div>&nbsp;</div>, which option 4 then eats. Looping is how a pure tokenizer
+  // reaches the same end-to-end output, so this is layer-1 compensation rather
+  // than optional polish — the same category as normalizeStrayBreaks.
+  if (opts.nestedEmpties) {
+    for (let i = 0; i < REPLACE_STABLE_LIMIT; i++) {
+      const before = result.output;
+      result = tidy(normalizeTagGaps(before, opts), opts);
+      fixCount += result.fixCount;
+      if (result.output === before) break;
+    }
+  }
+
+  // Block separation runs after the cleaners, not before. TinyMCE does this at
+  // layer 1 for them, but emitting the newlines up front would feed the empty-tag
+  // machine "<div>\n</div>" instead of the "<div></div>" it needs to match, and
+  // would leave a leading newline behind wherever an unwrapped container had been.
+  text = opts.blockNewlines ? separateBlockElements(result.output) : result.output;
+
+  text = postPassLoop(text);
+
+  if (opts.tagAttributes) text = removeAllTagAttributes(text);
+  if (opts.aiWatermarks) text = removeAiWatermarks(text);
+  if (opts.straightenQuotes) text = straightenSmartPunctuation(text);
+  if (opts.smartNbsps) text = smartNbsps(text);
+
+  return { output: finalCleanup(text), fixCount, tagCount };
+}
+
 
 // ============================================================
 // OPTIONS — Separated into indent and tidy option readers
@@ -972,11 +1338,20 @@ function getTidyOptions() {
     removeEmptyTags: document.getElementById('opt-empty-tags').checked,
     removeOneSpaceTags: document.getElementById('opt-one-space-tags').checked,
     trimWhitespace: document.getElementById('opt-trim-whitespace').checked,
-    newlineBeforeClose: document.getElementById('opt-newline-before-close').checked,
     removeStyles: document.getElementById('opt-remove-styles').checked,
     removeClassesIds: document.getElementById('opt-classes-ids').checked,
     removeDataAttrs: document.getElementById('opt-remove-data-attrs').checked,
     unwrapSpans: document.getElementById('opt-unwrap-spans').checked,
+    tagAttributes: document.getElementById('opt-tag-attributes').checked,
+    plainText: document.getElementById('opt-plain-text').checked,
+    aiWatermarks: document.getElementById('opt-ai-watermarks').checked,
+    smartNbsps: document.getElementById('opt-smart-nbsps').checked,
+    strayBreaks: document.getElementById('opt-stray-breaks').checked,
+    stripScripts: document.getElementById('opt-strip-scripts').checked,
+    blockNewlines: document.getElementById('opt-block-newlines').checked,
+    nestedEmpties: document.getElementById('opt-nested-empties').checked,
+    docsResidue: document.getElementById('opt-docs-residue').checked,
+    straightenQuotes: document.getElementById('opt-straighten-quotes').checked,
   };
 }
 
@@ -991,9 +1366,11 @@ const TIDY_CHECKBOX_IDS = [
   'opt-sort-attrs', 'opt-lowercase-tags', 'opt-lowercase-attrs',
   'opt-remove-empty-attrs', 'opt-fix-self-closing', 'opt-unquoted-to-quoted',
   'opt-remove-comments', 'opt-empty-tags', 'opt-one-space-tags', 'opt-trim-whitespace',
-  'opt-newline-before-close', 'opt-remove-styles', 'opt-classes-ids',
+  'opt-remove-styles', 'opt-classes-ids',
   'opt-remove-data-attrs', 'opt-unwrap-spans', 'opt-tag-attributes',
   'opt-plain-text', 'opt-ai-watermarks', 'opt-smart-nbsps', 'opt-stray-breaks',
+  'opt-strip-scripts', 'opt-nested-empties', 'opt-docs-residue', 'opt-straighten-quotes',
+  'opt-block-newlines',
 ];
 
 function saveTidyOptions() {
@@ -1312,23 +1689,7 @@ function init() {
     hideError();
     try {
       pushUndo();
-      var opts = getTidyOptions();
-      var normalized = document.getElementById('opt-stray-breaks').checked
-        ? normalizeStrayBreaks(html)
-        : html;
-      var result = tidy(normalized, opts);
-      if (document.getElementById('opt-tag-attributes').checked) {
-        result.output = removeAllTagAttributes(result.output);
-      }
-      if (document.getElementById('opt-plain-text').checked) {
-        result.output = toPlainText(result.output);
-      }
-      if (document.getElementById('opt-ai-watermarks').checked) {
-        result.output = removeAiWatermarks(result.output);
-      }
-      if (document.getElementById('opt-smart-nbsps').checked) {
-        result.output = smartNbsps(result.output);
-      }
+      var result = runTidyPipeline(html, getTidyOptions());
       updateEditors(result.output);
       resetIndentStage();
       updateStats(html, result.output, result.tagCount, result.fixCount);

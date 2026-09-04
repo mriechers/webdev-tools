@@ -1,5 +1,7 @@
 # prettyhtml.com Functional Parity Implementation Plan
 
+> **⚠️ Partially superseded (2026-09-03).** This plan's option-by-option mapping and its literal-port transcriptions (options 7, 9, 10) still stand. Its **Algorithm Snapshot appendix is incomplete** — it captured the individual cleaners but not the pipeline that surrounds them (pre-pass, post-pass loop, unconditional script/style removal, option dispatch order, Prettify/Compress). For the complete and corrected spec, read **`2026-09-03-prettyhtml-complete-capture.md`** first; that document is authoritative where the two disagree.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make `/formatter/` a functional replacement for prettyhtml.com — every option that exists there is available here, with the same labels and defaults, so the user is insulated from prettyhtml.com disappearing or changing hands.
@@ -37,7 +39,7 @@ prettyhtml.com exposes 10 cleaning toggles (defaults: 1-6 ON, 7-10 OFF, cookie-p
 
 ### Source-of-truth files (already gathered, 2026-05-27 snapshot)
 
-If you're executing this plan later and prettyhtml.com has changed/disappeared, the working copies on the user's machine are at:
+**These `/tmp` paths are gone** — `/tmp` did not survive. A fresh capture was taken on 2026-09-03 and now lives in `planning/captures/` (gitignored, local-only; see the legal note in `2026-09-03-prettyhtml-complete-capture.md`). The original list, for the record:
 - `/tmp/prettyhtml-home.html` — full HTML of prettyhtml.com (33 KB)
 - `/tmp/prettyhtml.js` — cleaning logic (73 KB minified)
 - `/tmp/prettyhtml-pretty.js` — naively pretty-printed (1133 lines)

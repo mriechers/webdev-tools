@@ -95,3 +95,17 @@ test('the Google-Docs paste collapses its stray breaks to spacers', () => {
 test('leaves text with no <br> untouched', () => {
   assert.equal(normalizeStrayBreaks('<p>hello</p>'), '<p>hello</p>');
 });
+
+test('drops a <br> sitting just inside a block closing tag', () => {
+  // Filler, not a line break — it renders nothing. prettyhtml.com's TinyMCE
+  // layer drops these too; verified live on 2026-09-04.
+  assert.equal(normalizeStrayBreaks('<p>Body copy.<br></p>'), '<p>Body copy.</p>');
+});
+
+test('drops a trailing <br> across intervening whitespace', () => {
+  assert.equal(normalizeStrayBreaks('<p>Body copy.<br>\n  </p>'), '<p>Body copy.\n  </p>');
+});
+
+test('still keeps a <br> that has text after it', () => {
+  assert.equal(normalizeStrayBreaks('<p>a<br>b</p>'), '<p>a<br>b</p>');
+});
