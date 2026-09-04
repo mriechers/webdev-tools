@@ -460,9 +460,10 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
     // layer 1; we have no layer 1, so the option covers them explicitly. dir="ltr"
     // survives on their site — stripping it is deliberately better than parity.
     if (opts.docsResidue) {
-      if (lowerAttrName === 'role' && value === 'presentation') return null;
+      const lowerValue = (value || '').toLowerCase();
+      if (lowerAttrName === 'role' && lowerValue === 'presentation') return null;
       if (lowerAttrName === 'aria-level') return null;
-      if (lowerAttrName === 'dir' && (value || '').toLowerCase() === 'ltr') return null;
+      if (lowerAttrName === 'dir' && lowerValue === 'ltr') return null;
     }
     if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
 

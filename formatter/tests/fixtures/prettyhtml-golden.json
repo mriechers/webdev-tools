@@ -97,7 +97,7 @@
       "fn": "option 8 replacement set",
       "input": "a<br/>b",
       "output": "a b",
-      "note": "One space per removed tag. Ours yields 'ab' — plain-text.test.mjs currently locks in the wrong behavior."
+      "note": "One space per removed tag. We used to delete the tag outright, yielding 'ab'; fixed alongside this fixture, and plain-text.test.mjs now asserts the space-substituting behavior recorded here."
     },
     {
       "id": "helyettesit-is-fixpoint",

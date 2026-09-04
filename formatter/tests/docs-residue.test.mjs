@@ -66,3 +66,11 @@ test('a real <b> nested inside the wrapper keeps its own closing tag', () => {
     runTidyPipeline('<b id="docs-internal-guid-x"><p>a <b>real</b> c</p></b>', opts).output,
     '<p>a <b>real</b> c</p>');
 });
+
+test('residue attribute values are matched case-insensitively', () => {
+  // role= was compared case-sensitively while dir= was lowercased first, so a
+  // differently-cased role slipped through where a dir would not.
+  const opts = withOpts({ blockNewlines: false });
+  assert.equal(runTidyPipeline('<p role="Presentation">a</p>', opts).output, '<p>a</p>');
+  assert.equal(runTidyPipeline('<p dir="LTR">a</p>', opts).output, '<p>a</p>');
+});
