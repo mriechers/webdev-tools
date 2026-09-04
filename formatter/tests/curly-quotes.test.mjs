@@ -113,3 +113,16 @@ test('the Extra straightens prose when turned on', () => {
   const opts = withOpts({ straightenQuotes: true, blockNewlines: false });
   assert.equal(runTidyPipeline('<p>“hi”</p>', opts).output, '<p>"hi"</p>');
 });
+
+// Why mixed delimiters are deliberately not supported: the fix would regress
+// these two, which are more common than mixed delimiters and parse correctly now.
+
+test('a straight-quoted value may contain curly prose quotes', () => {
+  assert.deepEqual(parseAttributes('alt="He said “hi” to me"'),
+    [{ name: 'alt', value: 'He said “hi” to me', quote: '"' }]);
+});
+
+test('a curly-quoted value may contain straight quotes', () => {
+  assert.deepEqual(parseAttributes('alt=“He said "hi" to me”'),
+    [{ name: 'alt', value: 'He said "hi" to me', quote: '"' }]);
+});

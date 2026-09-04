@@ -81,6 +81,17 @@ const BLOCK_ELEMENTS = new Set([
  * Each opener maps to the set of characters that may close it — a pair is accepted
  * in either orientation, since autocorrect sometimes emits two openers or two
  * closers when it guesses the word boundary wrong.
+ *
+ * Known limitation, deliberate: a value that mixes delimiter styles
+ * (`class=“hero lede"`) is NOT recognized and still falls to the bare-value path.
+ * Autocorrect converts both quotes of a pair, so this shape has not been observed
+ * in real input — and the obvious fix costs more than it buys. Letting a straight
+ * quote close a curly-opened value would truncate `alt=“He said "hi" to me”`, and
+ * letting a curly close a straight-opened one would truncate
+ * `alt="He said “hi” to me"` — quoted prose inside an attribute, which is both
+ * common and exactly what a word processor produces. Those two cases parse
+ * correctly today and are covered by tests; keep it that way unless a real
+ * mixed-delimiter sample turns up.
  */
 const QUOTE_CLOSERS = {
   '"': '"',
