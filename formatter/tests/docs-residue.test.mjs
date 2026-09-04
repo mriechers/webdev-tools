@@ -74,3 +74,35 @@ test('residue attribute values are matched case-insensitively', () => {
   assert.equal(runTidyPipeline('<p role="Presentation">a</p>', opts).output, '<p>a</p>');
   assert.equal(runTidyPipeline('<p dir="LTR">a</p>', opts).output, '<p>a</p>');
 });
+
+// A span whose only attribute is Docs residue must unwrap, the same as one whose
+// only attribute is an inline style. buildTidyTag and the unwrapSpans check share
+// isDroppedAttr so the two cannot disagree again. Regression guard: assert with
+// the nested-empties fixpoint OFF, since that loop otherwise masks the bug by
+// catching the emptied span on a second pass.
+const noFixpoint = withOpts({ nestedEmpties: false, blockNewlines: false });
+
+test('a span holding only role="presentation" is unwrapped', () => {
+  assert.equal(runTidyPipeline('<p><span role="presentation">x</span></p>', noFixpoint).output,
+    '<p>x</p>');
+});
+
+test('a span holding only dir="ltr" is unwrapped', () => {
+  assert.equal(runTidyPipeline('<p><span dir="ltr">x</span></p>', noFixpoint).output, '<p>x</p>');
+});
+
+test('a span holding only aria-level is unwrapped', () => {
+  assert.equal(runTidyPipeline('<p><span aria-level="2">x</span></p>', noFixpoint).output,
+    '<p>x</p>');
+});
+
+test('a span with a surviving attribute is still kept', () => {
+  assert.equal(runTidyPipeline('<p><span dir="rtl">x</span></p>', noFixpoint).output,
+    '<p><span dir="rtl">x</span></p>');
+});
+
+test('residue unwrapping respects the docs-residue toggle', () => {
+  const off = withOpts({ nestedEmpties: false, blockNewlines: false, docsResidue: false });
+  assert.equal(runTidyPipeline('<p><span dir="ltr">x</span></p>', off).output,
+    '<p><span dir="ltr">x</span></p>');
+});

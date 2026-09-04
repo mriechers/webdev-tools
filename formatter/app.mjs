@@ -453,6 +453,32 @@ function isBooleanAttr(name) {
 }
 
 /**
+ * True if an attribute is removed by the current options.
+ *
+ * Single source of truth for two call sites that must agree: buildTidyTag, which
+ * decides what to emit, and the unwrapSpans check, which decides whether a <span>
+ * has anything left worth keeping. They were duplicated, and adding the Google
+ * Docs residue rules to one and not the other left a span whose only attribute
+ * was residue un-unwrapped while that same attribute got stripped. At shipped
+ * defaults the opt-nested-empties fixpoint hid it by catching the span on a
+ * second pass; with that Extra off, a stray <span> survived.
+ */
+function isDroppedAttr(name, value, opts) {
+  const an = name.toLowerCase();
+  if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return true;
+  if (opts.removeClassesIds && (an === 'class' || an === 'id')) return true;
+  if (opts.removeDataAttrs && an.startsWith('data-')) return true;
+  if (opts.docsResidue) {
+    const lowerValue = (value || '').toLowerCase();
+    if (an === 'role' && lowerValue === 'presentation') return true;
+    if (an === 'aria-level') return true;
+    if (an === 'dir' && lowerValue === 'ltr') return true;
+  }
+  if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(an)) return true;
+  return false;
+}
+
+/**
  * Build a tidied tag string, applying cleaning options to attributes.
  */
 function buildTidyTag(tagName, attrs, selfClose, opts) {
@@ -463,20 +489,10 @@ function buildTidyTag(tagName, attrs, selfClose, opts) {
     let value = attr.value;
     let quote = attr.quote;
 
-    const lowerAttrName = attrName.toLowerCase();
-    if (opts.removeStyles && (lowerAttrName === 'style' || lowerAttrName === 'valign' || lowerAttrName === 'align')) return null;
-    if (opts.removeClassesIds && (lowerAttrName === 'class' || lowerAttrName === 'id')) return null;
-    if (opts.removeDataAttrs && lowerAttrName.startsWith('data-')) return null;
-    // Google Docs residue. TinyMCE drops role/aria-level for prettyhtml.com at
-    // layer 1; we have no layer 1, so the option covers them explicitly. dir="ltr"
-    // survives on their site — stripping it is deliberately better than parity.
-    if (opts.docsResidue) {
-      const lowerValue = (value || '').toLowerCase();
-      if (lowerAttrName === 'role' && lowerValue === 'presentation') return null;
-      if (lowerAttrName === 'aria-level') return null;
-      if (lowerAttrName === 'dir' && lowerValue === 'ltr') return null;
-    }
-    if (opts.removeEmptyAttrs && value === '' && !isBooleanAttr(attrName)) return null;
+    // Google Docs residue is part of this: TinyMCE drops role/aria-level for
+    // prettyhtml.com at layer 1; we have no layer 1, so the option covers them
+    // explicitly. dir="ltr" survives on their site — deliberately better than parity.
+    if (isDroppedAttr(attrName, value, opts)) return null;
 
     if (opts.quoteAttrs && value !== null && quote !== '"' && quote !== "'") {
       quote = '"';
@@ -608,14 +624,8 @@ export function tidy(html, opts) {
 
         // Unwrap empty spans
         if (opts.unwrapSpans && lowerName === 'span') {
-          const remainingAttrs = (token.attributes || []).filter(attr => {
-            const an = (opts.lowercaseAttrs ? attr.name.toLowerCase() : attr.name).toLowerCase();
-            if (opts.removeStyles && (an === 'style' || an === 'valign' || an === 'align')) return false;
-            if (opts.removeClassesIds && (an === 'class' || an === 'id')) return false;
-            if (opts.removeDataAttrs && an.startsWith('data-')) return false;
-            if (opts.removeEmptyAttrs && attr.value === '' && !isBooleanAttr(an)) return false;
-            return true;
-          });
+          const remainingAttrs = (token.attributes || [])
+            .filter(attr => !isDroppedAttr(attr.name, attr.value, opts));
           if (remainingAttrs.length === 0) {
             fixCount++;
             unwrappedSpanDepth++;
